@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Nintendo Streaminet concept streaming destination for movies, shows, and specials." />
+  <title>Nintendo Streaminet | Movies, Shows & Specials</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="#hero" aria-label="Nintendo Streaminet home">
+        <span class="brand-mark">NS</span>
+        <span>Nintendo Streaminet</span>
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links">☰</button>
+      <div class="nav-links" id="nav-links">
+        <a href="#movies">Movies</a>
+        <a href="#shows">Shows</a>
+        <a href="#specials">Specials</a>
+        <a href="#plans">Plans</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Playful stories. Cinematic worlds.</p>
+        <h1>Stream adventures made for every player.</h1>
+        <p>Nintendo Streaminet is a concept entertainment hub for original movies, episodic shows, behind-the-scenes specials, and family watch parties inspired by game-night energy.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#plans">Start streaming</a>
+          <a class="button secondary" href="#featured">Browse catalog</a>
+        </div>
+      </div>
+      <aside class="hero-card" aria-label="Featured premiere">
+        <span class="pill">New Premiere</span>
+        <h2>Super Star Cinema Night</h2>
+        <p>An all-ages marathon event with animated shorts, creator interviews, and live trivia challenges.</p>
+        <button class="play-button" data-title="Super Star Cinema Night">▶ Watch trailer</button>
+      </aside>
+    </section>
+
+    <section class="section" id="featured">
+      <div class="section-heading">
+        <p class="eyebrow">Featured</p>
+        <h2>Fresh picks on Streaminet</h2>
+      </div>
+      <div class="filter-bar" role="group" aria-label="Catalog filters">
+        <button class="filter active" data-filter="all">All</button>
+        <button class="filter" data-filter="movie">Movies</button>
+        <button class="filter" data-filter="show">Shows</button>
+        <button class="filter" data-filter="special">Specials</button>
+      </div>
+      <div class="catalog-grid" id="catalog-grid"></div>
+    </section>
+
+    <section class="section split" id="movies">
+      <div>
+        <p class="eyebrow">Movies</p>
+        <h2>Big-screen quests at home</h2>
+        <p>Enjoy colorful animated features, cozy mysteries, racing comedies, and epic fantasy journeys presented in a living-room-friendly format.</p>
+      </div>
+      <div class="feature-panel red">
+        <strong>4K Family Mode</strong>
+        <span>Smart volume leveling, brightness controls, and pause-ready recaps for group viewing.</span>
+      </div>
+    </section>
+
+    <section class="section split reverse" id="shows">
+      <div>
+        <p class="eyebrow">Shows</p>
+        <h2>Weekly episodes with replay value</h2>
+        <p>Follow original mini-series, challenge shows, character spotlights, and documentary-style journeys through beloved creative worlds.</p>
+      </div>
+      <div class="feature-panel blue">
+        <strong>Quest Queue</strong>
+        <span>Create themed watchlists, track episodes, and unlock trivia badges after each finale.</span>
+      </div>
+    </section>
+
+    <section class="section cards" id="specials">
+      <div class="section-heading">
+        <p class="eyebrow">Specials</p>
+        <h2>Events beyond the episode</h2>
+      </div>
+      <article>
+        <h3>Direct-to-Stream Showcases</h3>
+        <p>Seasonal announcements, shorts, and creator conversations packaged as celebratory watch events.</p>
+      </article>
+      <article>
+        <h3>Co-op Watch Parties</h3>
+        <p>Invite friends, react with character emotes, and compete in synchronized trivia during premieres.</p>
+      </article>
+      <article>
+        <h3>Behind the Cartridge</h3>
+        <p>Short documentaries exploring art, music, animation, and storytelling craft.</p>
+      </article>
+    </section>
+
+    <section class="section plans" id="plans">
+      <div class="section-heading">
+        <p class="eyebrow">Memberships</p>
+        <h2>Choose your stream style</h2>
+      </div>
+      <div class="pricing-grid">
+        <article class="price-card">
+          <h3>Player</h3>
+          <p class="price">$6.99<span>/mo</span></p>
+          <ul>
+            <li>HD streaming</li>
+            <li>One active screen</li>
+            <li>Kids profile controls</li>
+          </ul>
+        </article>
+        <article class="price-card featured-plan">
+          <h3>Family Pack</h3>
+          <p class="price">$11.99<span>/mo</span></p>
+          <ul>
+            <li>4K streaming</li>
+            <li>Four active screens</li>
+            <li>Co-op watch parties</li>
+          </ul>
+        </article>
+        <article class="price-card">
+          <h3>Collector</h3>
+          <p class="price">$16.99<span>/mo</span></p>
+          <ul>
+            <li>Offline downloads</li>
+            <li>Bonus specials</li>
+            <li>Premiere badges</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="trailer-modal" aria-hidden="true" role="dialog" aria-labelledby="modal-title">
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Close trailer">×</button>
+      <p class="eyebrow">Trailer</p>
+      <h2 id="modal-title">Now playing</h2>
+      <div class="fake-player">▶</div>
+      <p>This demo player previews how Streaminet trailers could launch from the catalog.</p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>© 2026 Nintendo Streaminet concept. Created as a fictional streaming-service design prototype.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
