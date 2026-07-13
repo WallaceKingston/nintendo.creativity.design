@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dignity OS — Startup</title>
+<style>
+  /* ------------------------------------------------------------------
+     Dignity OS startup animation — on-screen simulation.
+     Fan-fiction concept for the fictional Dignity set-top box.
+
+     A/V sync model (mirrors src/boot_anim.c): the audio clock is the
+     master. Every visual keyframe fires when AudioContext.currentTime
+     crosses its timestamp — the same timestamps the jingle notes are
+     scheduled at — so picture and sound can never drift apart.
+     ------------------------------------------------------------------ */
+  :root {
+    --bg:          #0a1440;
+    --bg-2:        #101e5c;
+    --red:         #d81f26;
+    --red-2:       #a60f18;
+    --gold:        #f5c518;
+    --text:        #dfe6ff;
+    --dim:         #6d7bb8;
+    --osd-font: "Verdana", "Tahoma", "DejaVu Sans", sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #17171c;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--osd-font);
+    padding: 16px;
+  }
+
+  .tv {
+    width: min(96vw, 860px);
+    background: #26262e;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.6);
+  }
+
+  .screen {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+    box-shadow: inset 0 0 60px rgba(0,0,0,.55);
+    color: var(--text);
+    font-size: clamp(10px, 1.9vw, 17px);
+    user-select: none;
+    cursor: pointer;
+  }
+  .screen::after {           /* scanlines */
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+    z-index: 40;
+  }
+
+  /* Stage layers ------------------------------------------------------ */
+  .stage {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1.1em;
+  }
+
+  /* CRT power-on flash */
+  .flash {
+    position: absolute; inset: 0; z-index: 30;
+    background: #fff; opacity: 0; pointer-events: none;
+  }
+  .screen.on .flash { animation: crt-pop .38s ease-out forwards; }
+  @keyframes crt-pop {
+    0%   { opacity: 0;  transform: scaleY(.004); }
+    18%  { opacity: 1;  transform: scaleY(.02); }
+    55%  { opacity: .9; transform: scaleY(1); }
+    100% { opacity: 0;  transform: scaleY(1); }
+  }
+
+  .screen.on { background: radial-gradient(ellipse at center, var(--bg-2), var(--bg) 75%); }
+
+  /* Wordmark ---------------------------------------------------------- */
+  .wordmark { display: flex; gap: .08em; }
+  .wordmark span {
+    font-size: 3.4em; font-weight: 800; letter-spacing: .04em;
+    color: #fff;
+    text-shadow: 0 3px 0 rgba(0,0,0,.35), 0 0 22px rgba(245,197,24,.0);
+    opacity: 0;
+    transform: translateY(.55em) scale(1.6);
+  }
+  .wordmark span.hit {
+    animation: letter-in .34s cubic-bezier(.2, 1.6, .4, 1) forwards;
+  }
+  @keyframes letter-in {
+    0%   { opacity: 0; transform: translateY(.55em) scale(1.6); filter: blur(3px); }
+    60%  { opacity: 1; transform: translateY(-.06em) scale(1.02); filter: blur(0); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Red sweep under the wordmark */
+  .sweep {
+    height: .28em; width: 62%;
+    background: linear-gradient(var(--red), var(--red-2));
+    border-radius: 2px;
+    transform: scaleX(0); transform-origin: left center;
+    box-shadow: 0 0 18px rgba(216,31,38,.55);
+  }
+  .sweep.hit { animation: sweep-in .5s cubic-bezier(.6,0,.2,1) forwards; }
+  @keyframes sweep-in { to { transform: scaleX(1); } }
+
+  .stage.glow .wordmark span {
+    text-shadow: 0 3px 0 rgba(0,0,0,.35), 0 0 26px rgba(245,197,24,.5);
+    transition: text-shadow .45s ease-out;
+  }
+
+  /* Tagline + OS line -------------------------------------------------- */
+  .tagline {
+    font-size: .78em; letter-spacing: .34em; color: var(--gold);
+    text-transform: uppercase; text-align: center;
+    opacity: 0; transform: translateY(.6em);
+  }
+  .tagline.hit { animation: soft-in .6s ease-out forwards; }
+
+  .osline {
+    display: flex; align-items: center; gap: .6em;
+    font-size: .85em; color: var(--dim);
+    opacity: 0; transform: translateY(.6em);
+  }
+  .osline.hit { animation: soft-in .5s ease-out forwards; }
+  @keyframes soft-in { to { opacity: 1; transform: translateY(0); } }
+
+  .osline .dot {
+    width: .55em; height: .55em; border-radius: 50%;
+    background: var(--gold);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .25; } }
+
+  /* Idle prompt / end prompt ------------------------------------------- */
+  .prompt {
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: .9em; background: #000;
+    transition: opacity .3s;
+  }
+  .prompt .led { width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red); box-shadow: 0 0 12px var(--red);
+    animation: pulse 1.6s ease-in-out infinite; }
+  .prompt .label { color: #8a8a95; font-size: .8em; letter-spacing: .18em; }
+  .screen.on .prompt { opacity: 0; pointer-events: none; }
+
+  .enter {
+    position: absolute; left: 0; right: 0; bottom: 7%;
+    text-align: center; z-index: 25;
+    font-size: .78em; color: var(--dim); letter-spacing: .06em;
+    opacity: 0;
+  }
+  .enter.hit { animation: soft-in .5s ease-out forwards; }
+  .enter b {
+    background: #222c66; color: var(--text);
+    border: 1px solid #2c3f8f; border-radius: 3px;
+    padding: .1em .45em; margin-right: .35em;
+  }
+
+  .caption {
+    color: #8a8a95; font-size: 12px; margin-top: 12px; text-align: center;
+    max-width: 640px; line-height: 1.5;
+  }
+  .caption b { color: #c9c9d4; }
+</style>
+</head>
+<body>
+
+<div class="tv">
+  <div class="screen" id="screen">
+    <div class="prompt" id="prompt">
+      <div class="led"></div>
+      <div class="label">STANDBY &mdash; PRESS POWER (CLICK OR ANY KEY)</div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="wordmark" id="wordmark"></div>
+      <div class="sweep" id="sweep"></div>
+      <div class="tagline" id="tagline">Digital&nbsp;Intelligence&nbsp;Generations&nbsp;Now&nbsp;in&nbsp;the&nbsp;Yield</div>
+      <div class="osline" id="osline"><span class="dot"></span><span>Dignity&trade; OS &nbsp;&bull;&nbsp; starting&hellip;</span></div>
+    </div>
+
+    <div class="enter" id="enter"><b>A</b>Program Guide &nbsp;&nbsp; <b>B</b>Replay</div>
+    <div class="flash"></div>
+  </div>
+</div>
+
+<p class="caption">
+  <b>Dignity OS</b> startup animation &mdash; the boot jingle is synthesized live and every
+  visual keyframe is clocked off the <b>audio timeline</b>, mirroring the firmware's
+  sample-counter A/V sync (<code>src/boot_anim.c</code> + <code>src/hw_audio.s</code>).
+  Fan-made design study; not a Nintendo product.
+</p>
+
+<script>
+/* --------------------------------------------------------------------
+ * Timeline — mirrors data/boot_timeline.xml. Times in seconds from
+ * power-on; the firmware stores the same instants in APU samples
+ * (time * 32000, see boot_anim.c).
+ * ------------------------------------------------------------------ */
+const LETTERS = "DIGNITY".split("");
+
+/* Ascending D-major pentatonic pluck per letter, then chord + sparkle. */
+const NOTE_HZ = [293.66, 329.63, 369.99, 440.0, 493.88, 587.33, 659.25];
+const LETTER_T0 = 0.55, LETTER_DT = 0.13;
+
+const KEYFRAMES = [
+  { t: 0.00, fx: powerOn   },                       /* CRT pop + hum      */
+  ...LETTERS.map((_, i) => ({ t: LETTER_T0 + i * LETTER_DT, fx: () => letter(i) })),
+  { t: 1.70, fx: sweep     },                       /* red sweep + chord  */
+  { t: 2.35, fx: tagline   },                       /* tagline + sparkle  */
+  { t: 3.30, fx: osline    },                       /* "starting..."      */
+  { t: 4.70, fx: finished  },                       /* prompt for guide   */
+];
+
+/* Audio ---------------------------------------------------------------
+ * All notes are scheduled against the AudioContext clock at power-on;
+ * the render loop reads the same clock, so audio is the sync master. */
+let ctx = null, t0 = 0, running = false, nextKf = 0;
+
+function env(gain, at, peak, attack, decay) {
+  gain.gain.setValueAtTime(0.0001, at);
+  gain.gain.exponentialRampToValueAtTime(peak, at + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + attack + decay);
+}
+
+function pluck(freq, at, peak = 0.22, decay = 0.5) {
+  const osc = ctx.createOscillator(), g = ctx.createGain();
+  osc.type = "triangle"; osc.frequency.value = freq;
+  const shimmer = ctx.createOscillator(), sg = ctx.createGain();
+  shimmer.type = "sine"; shimmer.frequency.value = freq * 2;
+  sg.gain.value = 0.35;
+  osc.connect(g); shimmer.connect(sg).connect(g); g.connect(ctx.destination);
+  env(g, at, peak, 0.012, decay);
+  osc.start(at); osc.stop(at + decay + 0.1);
+  shimmer.start(at); shimmer.stop(at + decay + 0.1);
+}
+
+function scheduleJingle(at) {
+  /* Power hum: filtered saw fading under the whole sequence. */
+  const hum = ctx.createOscillator(), hg = ctx.createGain(),
+        lp = ctx.createBiquadFilter();
+  hum.type = "sawtooth"; hum.frequency.value = 58;
+  lp.type = "lowpass"; lp.frequency.value = 140;
+  hum.connect(lp).connect(hg).connect(ctx.destination);
+  hg.gain.setValueAtTime(0.05, at);
+  hg.gain.linearRampToValueAtTime(0.0, at + 2.2);
+  hum.start(at); hum.stop(at + 2.3);
+
+  /* One pluck per wordmark letter. */
+  NOTE_HZ.forEach((hz, i) => pluck(hz, at + LETTER_T0 + i * LETTER_DT));
+
+  /* Chord swell under the red sweep: D3 A3 D4 F#4. */
+  [146.83, 220.0, 293.66, 369.99].forEach(hz => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = hz;
+    o.connect(g).connect(ctx.destination);
+    g.gain.setValueAtTime(0.0001, at + 1.70);
+    g.gain.linearRampToValueAtTime(0.09, at + 2.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 3.6);
+    o.start(at + 1.70); o.stop(at + 3.7);
+  });
+
+  /* Sparkle ding on the tagline. */
+  pluck(1174.66, at + 2.35, 0.12, 0.9);
+  pluck(1567.98, at + 2.42, 0.10, 1.1);
+}
+
+/* Visual keyframe handlers -------------------------------------------- */
+const $ = id => document.getElementById(id);
+
+function powerOn()  { $("screen").classList.add("on"); }
+function letter(i)  { $("wordmark").children[i].classList.add("hit"); }
+function sweep()    { $("sweep").classList.add("hit"); $("stage").classList.add("glow"); }
+function tagline()  { $("tagline").classList.add("hit"); }
+function osline()   { $("osline").classList.add("hit"); }
+function finished() { $("enter").classList.add("hit"); running = false; }
+
+/* Sequencer — the analogue of boot_anim_step() in boot_anim.c --------- */
+function frame() {
+  if (!running) return;
+  const t = ctx.currentTime - t0;          /* audio clock, not wall clock */
+  while (nextKf < KEYFRAMES.length && t >= KEYFRAMES[nextKf].t)
+    KEYFRAMES[nextKf++].fx();
+  requestAnimationFrame(frame);
+}
+
+function reset() {
+  $("screen").classList.remove("on");
+  $("stage").classList.remove("glow");
+  for (const el of [...$("wordmark").children, $("sweep"), $("tagline"), $("osline"), $("enter")])
+    el.classList.remove("hit");
+  void $("screen").offsetWidth;            /* restart CSS animations */
+}
+
+function powerUp() {
+  if (running) return;
+  ctx ??= new (window.AudioContext || window.webkitAudioContext)();
+  ctx.resume();
+  reset();
+  t0 = ctx.currentTime + 0.06;             /* small lead for scheduling */
+  scheduleJingle(t0);
+  nextKf = 0; running = true;
+  requestAnimationFrame(frame);
+}
+
+/* Boot-strap ----------------------------------------------------------- */
+$("wordmark").innerHTML = LETTERS.map(c => `<span>${c}</span>`).join("");
+
+$("screen").addEventListener("click", powerUp);
+document.addEventListener("keydown", e => {
+  if (!running && e.key === "Enter" && $("enter").classList.contains("hit")) {
+    location.href = "epg.html";            /* A -> Program Guide */
+  } else if (e.key === "Backspace" || e.key === "Escape") {
+    e.preventDefault(); powerUp();         /* B -> replay        */
+  } else if (!running) {
+    powerUp();
+  }
+});
+</script>
+</body>
+</html>
