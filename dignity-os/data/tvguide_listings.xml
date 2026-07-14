@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Dignity OS EPG listings carousel snapshot.
+  Format: TV Guide-style grid data. Times are minutes since 00:00 local.
+  Baked into ROM data bank 2 by tools/mklistings at build time.
+-->
+<listings service="DTV-CABLE" market="New York" date="2026-07-13" generator="mklistings 1.4">
+
+  <channel num="2" callsign="WCBS" name="CBS 2 New York">
+    <event start="1140" dur="30" rating="TV-G"  title="Entertainment Tonight"
+           desc="Celebrity news and interviews from Hollywood and beyond."/>
+    <event start="1170" dur="30" rating="TV-G"  title="Inside Edition"
+           desc="Investigative reports and human-interest stories."/>
+    <event start="1200" dur="60" rating="TV-PG" title="The Price Is Right at Night"
+           desc="Contestants bid on prizes in this primetime edition of the classic game show."/>
+    <event start="1260" dur="60" rating="TV-14" title="FBI"
+           desc="The team races to stop a bomber targeting the transit system."/>
+    <event start="1320" dur="60" rating="TV-14" title="FBI: Most Wanted"
+           desc="Remick's unit tracks a fugitive across state lines."/>
+  </channel>
+
+  <channel num="4" callsign="WNBC" name="NBC 4 New York">
+    <event start="1140" dur="30" rating="TV-G"  title="Access Hollywood"
+           desc="Behind-the-scenes entertainment coverage."/>
+    <event start="1170" dur="30" rating="TV-G"  title="Extra"
+           desc="The latest in entertainment news."/>
+    <event start="1200" dur="60" rating="TV-PG" title="The Wall"
+           desc="Teams answer trivia as the wall decides their fortune."/>
+    <event start="1260" dur="120" rating="TV-PG" title="Monday Night Movie: Summer Lights"
+           desc="(2024, Drama) A lighthouse keeper's daughter returns home to a town full of secrets. ***"/>
+  </channel>
+
+  <channel num="5" callsign="WNYW" name="FOX 5 New York">
+    <event start="1140" dur="60" rating="TV-PG" title="TMZ"
+           desc="Celebrity gossip and entertainment headlines."/>
+    <event start="1200" dur="60" rating="TV-PG" title="Kitchen Showdown"
+           desc="Twelve chefs face the mystery pantry in the season opener."/>
+    <event start="1260" dur="60" rating="TV-14" title="9-1-1: Lone Star"
+           desc="A refinery fire pushes the 126 to its limits."/>
+    <event start="1320" dur="60" rating="TV-G"  title="FOX 5 News at 10"
+           desc="Local news, weather and sports."/>
+  </channel>
+
+  <channel num="7" callsign="WABC" name="ABC 7 New York">
+    <event start="1140" dur="30" rating="TV-G"  title="Jeopardy!"
+           desc="America's favorite answer-and-question quiz show."/>
+    <event start="1170" dur="30" rating="TV-G"  title="Wheel of Fortune"
+           desc="Contestants spin the wheel and solve word puzzles."/>
+    <event start="1200" dur="120" rating="TV-PG" title="The Bachelor: Island Nights"
+           desc="Two-hour special. Alliances shift after a surprise arrival on the island."/>
+    <event start="1320" dur="60" rating="TV-14" title="The Rookie"
+           desc="Nolan mentors a recruit during a citywide blackout."/>
+  </channel>
+
+  <channel num="11" callsign="WPIX" name="PIX 11">
+    <event start="1140" dur="60" rating="TV-PG" title="Family Feud"
+           desc="Two families face off in the survey says showdown. Back-to-back episodes."/>
+    <event start="1200" dur="120" rating="TV-PG" title="Superman &amp; Lois"
+           desc="Clark weighs a life without the cape as a new threat rises in Smallville."/>
+    <event start="1320" dur="60" rating="TV-G"  title="PIX11 News at Ten"
+           desc="New York's very own with the day's top stories."/>
+  </channel>
+
+  <channel num="13" callsign="WNET" name="THIRTEEN PBS">
+    <event start="1140" dur="60" rating="TV-G"  title="PBS NewsHour"
+           desc="In-depth analysis of the day's national and world news."/>
+    <event start="1200" dur="60" rating="TV-G"  title="Antiques Roadshow"
+           desc="Appraisals from Boise: a 1919 baseball archive stuns the experts."/>
+    <event start="1260" dur="120" rating="TV-PG" title="American Experience: The Grid"
+           desc="How electrification rewired the American home, town and imagination."/>
+  </channel>
+
+  <channel num="24" callsign="ESPN" name="ESPN">
+    <event start="1140" dur="60" rating="TV-G"  title="SportsCenter"
+           desc="Highlights, analysis and the day's top plays."/>
+    <event start="1200" dur="180" rating="TV-G" title="MLB Baseball: Yankees at Red Sox"
+           desc="Live from Fenway Park. Rivalry week continues in Boston."/>
+    <event start="1380" dur="60" rating="TV-G"  title="Baseball Tonight"
+           desc="Postgame wrap-up and around-the-league highlights."/>
+  </channel>
+
+  <channel num="26" callsign="CNN" name="CNN">
+    <event start="1140" dur="60" rating="TV-PG" title="The Situation Room"
+           desc="Breaking news and political headlines from Washington."/>
+    <event start="1200" dur="60" rating="TV-PG" title="Erin Burnett OutFront"
+           desc="The stories on the front lines of the news."/>
+    <event start="1260" dur="60" rating="TV-PG" title="Anderson Cooper 360"
+           desc="Keeping them honest with the day's top stories."/>
+    <event start="1320" dur="60" rating="TV-PG" title="CNN NewsNight"
+           desc="A late look at the biggest stories of the day."/>
+  </channel>
+
+  <channel num="31" callsign="NICK" name="Nickelodeon">
+    <event start="1140" dur="60" rating="TV-Y7" title="SpongeBob SquarePants"
+           desc="Bikini Bottom hosts the annual Fry Cook Games. Back-to-back episodes."/>
+    <event start="1200" dur="60" rating="TV-Y7" title="The Loud House"
+           desc="Lincoln schemes to win the family talent show."/>
+    <event start="1260" dur="120" rating="TV-PG" title="Nick at Nite: Friends"
+           desc="Classic sitcom marathon continues."/>
+  </channel>
+
+  <channel num="42" callsign="TVGC" name="TV Guide Channel">
+    <event start="1140" dur="300" rating="TV-G" title="Listings — What's On Tonight"
+           desc="Scrolling program listings with entertainment news and previews."/>
+  </channel>
+
+</listings>

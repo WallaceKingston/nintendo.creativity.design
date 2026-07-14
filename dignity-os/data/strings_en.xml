@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Dignity OS UI string table — English (US).
+  Compiled to ROM string bank 0 by tools/mkstrings. Firmware code refers to
+  entries by the STR_* symbolic id (see generated epg_strings.h).
+-->
+<strings lang="en-US" bank="0">
+  <s id="STR_OS_NAME">Dignity OS</s>
+  <s id="STR_OS_TAGLINE">Digital Intelligence Generations Now in the Yield</s>
+  <s id="STR_GUIDE_TITLE">PROGRAM GUIDE</s>
+  <s id="STR_GUIDE_SOURCE">Listings by TV Guide</s>
+  <s id="STR_ALL_CHANNELS">ALL CHANNELS</s>
+  <s id="STR_FAVORITES">FAVORITES</s>
+  <s id="STR_NOW_PLAYING">NOW PLAYING</s>
+  <s id="STR_NEXT_UP">NEXT UP</s>
+  <s id="STR_NO_INFO">No program information available.</s>
+  <s id="STR_TUNE">Tune</s>
+  <s id="STR_DETAILS">Details</s>
+  <s id="STR_BACK">Back</s>
+  <s id="STR_PAGE_TIME">Page &#177;90 min</s>
+  <s id="STR_CLOSE_GUIDE">Close Guide</s>
+  <s id="STR_REMINDER_SET">Reminder set for %1</s>
+  <s id="STR_TUNING">Tuning to channel %1&#8230;</s>
+  <s id="STR_SIGNAL_LOST">Signal lost. Check antenna or cable connection. (Code DGY-201)</s>
+  <s id="STR_RATING_LABEL">Rated %1</s>
+  <s id="STR_MIN_SUFFIX">%1 min</s>
+</strings>

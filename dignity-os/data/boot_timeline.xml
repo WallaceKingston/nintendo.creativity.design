@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Dignity OS startup animation timeline.
+  Compiled to ROM by tools/mktimeline. All times are APU samples at 32000 Hz
+  (the DAC sample counter is the A/V sync master clock — see boot_anim.c).
+  time_s is authoring-only and ignored by the compiler.
+-->
+<timeline rate="32000" length="150400">
+
+  <video>
+    <key sample="0"      time_s="0.00" op="CRT_FLASH"/>
+    <key sample="17600"  time_s="0.55" op="LETTER" arg="0"/>  <!-- D -->
+    <key sample="21760"  time_s="0.68" op="LETTER" arg="1"/>  <!-- I -->
+    <key sample="25920"  time_s="0.81" op="LETTER" arg="2"/>  <!-- G -->
+    <key sample="30080"  time_s="0.94" op="LETTER" arg="3"/>  <!-- N -->
+    <key sample="34240"  time_s="1.07" op="LETTER" arg="4"/>  <!-- I -->
+    <key sample="38400"  time_s="1.20" op="LETTER" arg="5"/>  <!-- T -->
+    <key sample="42560"  time_s="1.33" op="LETTER" arg="6"/>  <!-- Y -->
+    <key sample="54400"  time_s="1.70" op="SWEEP"/>
+    <key sample="75200"  time_s="2.35" op="TAGLINE"/>
+    <key sample="105600" time_s="3.30" op="OSLINE"/>
+    <key sample="150400" time_s="4.70" op="DONE"/>
+  </video>
+
+  <audio>
+    <note sample="0"      op="HUM"    hz="58"   dur_s="2.20" level="13"/>
+    <note sample="17600"  op="PLUCK"  hz="294"  dur_s="0.50" level="56"/>  <!-- D4 -->
+    <note sample="21760"  op="PLUCK"  hz="330"  dur_s="0.50" level="56"/>  <!-- E4 -->
+    <note sample="25920"  op="PLUCK"  hz="370"  dur_s="0.50" level="56"/>  <!-- F#4 -->
+    <note sample="30080"  op="PLUCK"  hz="440"  dur_s="0.50" level="56"/>  <!-- A4 -->
+    <note sample="34240"  op="PLUCK"  hz="494"  dur_s="0.50" level="56"/>  <!-- B4 -->
+    <note sample="38400"  op="PLUCK"  hz="587"  dur_s="0.50" level="56"/>  <!-- D5 -->
+    <note sample="42560"  op="PLUCK"  hz="659"  dur_s="0.50" level="56"/>  <!-- E5 -->
+    <note sample="54400"  op="CHORD"  hz="147"  dur_s="1.90" level="23"/>  <!-- D3 root -->
+    <note sample="75200"  op="PLUCK"  hz="1175" dur_s="0.90" level="31"/>  <!-- D6 ding -->
+    <note sample="77440"  op="PLUCK"  hz="1568" dur_s="1.10" level="26"/>  <!-- G6 ding -->
+  </audio>
+
+</timeline>

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dignity OS — Program Guide</title>
+<style>
+  /* ------------------------------------------------------------------
+     Dignity OS EPG — on-screen display simulation.
+     Fan-fiction concept for the fictional Dignity set-top box.
+     Mirrors the OSD layout composed by src/epg_render.cpp: red header
+     band, time bar, 6x3 guide grid, info panel, key-hint strip.
+     ------------------------------------------------------------------ */
+  :root {
+    --grid-bg:     #0a1440;
+    --grid-bg-2:   #101e5c;
+    --grid-line:   #2c3f8f;
+    --cell-text:   #dfe6ff;
+    --cursor-fill: #f5c518;   /* TV Guide yellow */
+    --cursor-text: #1a1200;
+    --header-fill: #d81f26;   /* Dignity red */
+    --header-2:    #a60f18;
+    --header-text: #ffffff;
+    --panel-fill:  #060c2c;
+    --panel-text:  #ffd977;
+    --dim:         #6d7bb8;
+    --osd-font: "Verdana", "Tahoma", "DejaVu Sans", sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #17171c;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--osd-font);
+    padding: 16px;
+  }
+
+  /* CRT bezel */
+  .tv {
+    width: min(96vw, 860px);
+    background: #26262e;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.6);
+  }
+
+  .screen {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at center, var(--grid-bg-2) 0%, var(--grid-bg) 75%);
+    box-shadow: inset 0 0 60px rgba(0,0,0,.55);
+    color: var(--cell-text);
+    font-size: clamp(9px, 1.7vw, 15px);
+    user-select: none;
+  }
+  .screen::after {           /* scanlines */
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+    z-index: 40;
+  }
+
+  .osd { position: absolute; inset: 3.5% 4.5%; display: flex; flex-direction: column; }
+
+  /* GUIDE button: hide the OSD and show "live TV" static */
+  .screen.guide-off .osd, .screen.guide-off .overlay { display: none; }
+  .screen.guide-off {
+    background:
+      repeating-conic-gradient(#1c1c22 0% 25%, #2a2a33 0% 50%) 0 0 / 6px 6px;
+  }
+
+  /* Header band ----------------------------------------------------- */
+  .hdr {
+    display: flex; align-items: center; gap: .8em;
+    background: linear-gradient(var(--header-fill), var(--header-2));
+    color: var(--header-text);
+    padding: .45em .8em;
+    border-radius: 4px 4px 0 0;
+    text-shadow: 1px 1px 0 rgba(0,0,0,.45);
+  }
+  .hdr .logo {
+    font-weight: 800; letter-spacing: .06em; font-size: 1.15em;
+    display: flex; align-items: baseline; gap: .45em;
+  }
+  .hdr .logo small { font-weight: 400; font-size: .62em; opacity: .85; letter-spacing: .12em; }
+  .hdr .title { margin-left: auto; font-weight: 700; letter-spacing: .18em; font-size: .85em; }
+  .hdr .clock {
+    font-variant-numeric: tabular-nums; font-weight: 700;
+    background: rgba(0,0,0,.28); padding: .15em .5em; border-radius: 3px;
+  }
+
+  .srcline {
+    text-align: right; color: var(--dim); font-size: .7em;
+    padding: .25em .4em; letter-spacing: .1em;
+  }
+
+  /* Time bar + grid --------------------------------------------------- */
+  .timebar, .grid-row { display: grid; grid-template-columns: 7.5em repeat(6, 1fr); }
+
+  .timebar {
+    background: var(--panel-fill);
+    color: var(--panel-text);
+    font-weight: 700; font-size: .8em;
+    border: 1px solid var(--grid-line); border-bottom: none;
+  }
+  .timebar > div { padding: .35em .5em; border-left: 1px solid var(--grid-line); }
+  .timebar > div:first-child { border-left: none; color: var(--dim); letter-spacing: .08em; }
+  .timebar .tslot { grid-column: span 2; }
+
+  .grid { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--grid-line); }
+  .grid-row { flex: 1; border-top: 1px solid var(--grid-line); }
+  .grid-row:first-child { border-top: none; }
+
+  .chan {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 .5em;
+    background: linear-gradient(90deg, #16255f, #0d1848);
+    border-right: 1px solid var(--grid-line);
+    line-height: 1.15;
+  }
+  .chan .num { font-weight: 800; color: var(--panel-text); font-size: 1.05em; }
+  .chan .call { font-size: .72em; color: var(--dim); letter-spacing: .06em; }
+
+  .cell {
+    display: flex; align-items: center;
+    padding: 0 .5em;
+    border-left: 1px solid var(--grid-line);
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    font-size: .85em;
+    cursor: pointer;
+  }
+  .cell .t { overflow: hidden; text-overflow: ellipsis; }
+  .cell.cont::before { content: "\25C0 "; color: var(--dim); font-size: .7em; margin-right: .3em; }
+  .cell.empty { color: var(--dim); font-style: italic; }
+  .cell.hot {
+    background: var(--cursor-fill);
+    color: var(--cursor-text);
+    font-weight: 700;
+    box-shadow: inset 0 0 0 2px #fff3c4;
+  }
+
+  /* Info panel -------------------------------------------------------- */
+  .info {
+    border: 1px solid var(--grid-line); border-top: none;
+    background: var(--panel-fill);
+    padding: .55em .8em;
+    min-height: 5.2em;
+    border-radius: 0 0 4px 4px;
+  }
+  .info .line1 { color: var(--panel-text); font-weight: 700; margin-bottom: .3em; }
+  .info .line1 .meta { color: var(--cell-text); font-weight: 400; font-size: .82em; margin-left: .8em; }
+  .info .rating {
+    display: inline-block; border: 1px solid var(--dim); color: var(--cell-text);
+    font-size: .68em; padding: 0 .35em; border-radius: 2px; margin-left: .6em;
+    vertical-align: middle;
+  }
+  .info .desc { font-size: .82em; line-height: 1.35; color: var(--cell-text); }
+
+  /* Key hints --------------------------------------------------------- */
+  .hints {
+    display: flex; gap: 1.4em; justify-content: center;
+    padding-top: .5em; font-size: .72em; color: var(--dim); letter-spacing: .04em;
+  }
+  .hints b {
+    display: inline-block; min-width: 1.6em; text-align: center;
+    background: #222c66; color: var(--cell-text);
+    border-radius: 3px; padding: .05em .3em; margin-right: .35em;
+    border: 1px solid var(--grid-line);
+  }
+
+  /* Details / tuning overlays ----------------------------------------- */
+  .overlay {
+    position: absolute; inset: 0; z-index: 30;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(3, 6, 24, .78);
+  }
+  .overlay.open { display: flex; }
+  .card {
+    width: 72%;
+    background: linear-gradient(#141f56, #0a1440);
+    border: 2px solid var(--cursor-fill);
+    border-radius: 6px;
+    padding: 1em 1.2em;
+    box-shadow: 0 10px 40px rgba(0,0,0,.7);
+  }
+  .card h2 { color: var(--panel-text); font-size: 1.05em; margin-bottom: .35em; }
+  .card .meta { color: var(--dim); font-size: .78em; margin-bottom: .6em; }
+  .card p { font-size: .85em; line-height: 1.45; margin-bottom: .9em; }
+  .card .actions { font-size: .75em; color: var(--dim); }
+  .card .actions b {
+    background: #222c66; color: var(--cell-text); border: 1px solid var(--grid-line);
+    border-radius: 3px; padding: .05em .35em; margin-right: .3em;
+  }
+
+  .banner {
+    position: absolute; left: 6%; right: 6%; bottom: 7%;
+    z-index: 35; display: none;
+    background: linear-gradient(var(--header-fill), var(--header-2));
+    color: #fff; font-weight: 700;
+    padding: .5em .9em; border-radius: 5px;
+    text-shadow: 1px 1px 0 rgba(0,0,0,.4);
+    box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  }
+  .banner.open { display: block; }
+  .banner small { display: block; font-weight: 400; font-size: .72em; opacity: .9; }
+
+  /* Below-the-TV caption ---------------------------------------------- */
+  .caption {
+    color: #8a8a95; font-size: 12px; margin-top: 12px; text-align: center;
+    max-width: 640px; line-height: 1.5;
+  }
+  .caption b { color: #c9c9d4; }
+</style>
+</head>
+<body>
+
+<div class="tv">
+  <div class="screen" id="screen">
+    <div class="osd">
+      <div class="hdr">
+        <div class="logo">DIGNITY<small>OS</small></div>
+        <div class="title">PROGRAM GUIDE</div>
+        <div class="clock" id="clock">8:12 PM</div>
+      </div>
+      <div class="srcline">LISTINGS BY TV GUIDE &nbsp;&bull;&nbsp; NEW YORK &mdash; DTV CABLE</div>
+      <div class="timebar" id="timebar"></div>
+      <div class="grid" id="grid"></div>
+      <div class="info" id="info"></div>
+      <div class="hints">
+        <span><b>&#10010;</b>Move</span>
+        <span><b>A</b>Details</span>
+        <span><b>B</b>Back</span>
+        <span><b>L R</b>&plusmn;90 min</span>
+        <span><b>GUIDE</b>Exit</span>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="card">
+        <h2 id="d-title"></h2>
+        <div class="meta" id="d-meta"></div>
+        <p id="d-desc"></p>
+        <div class="actions"><b>A</b>Tune to channel &nbsp; <b>B</b>Close</div>
+      </div>
+    </div>
+
+    <div class="banner" id="banner"></div>
+  </div>
+</div>
+
+<p class="caption">
+  <b>Dignity OS</b> electronic program guide &mdash; concept UI for the fictional
+  <b>Dignity</b> set-top box (<i>Digital Intelligence Generations Now in the Yield</i>).
+  Use the <b>arrow keys</b>, <b>Enter</b> (A), <b>Backspace</b> (B), and <b>[ ]</b> (L/R).
+  Fan-made design study; not a Nintendo or TV Guide product.
+</p>
+
+<script>
+/* --------------------------------------------------------------------
+ * Guide data — mirrors data/tvguide_listings.xml (generated snapshot).
+ * start/dur are minutes since 00:00 local, as in epg_core.h.
+ * ------------------------------------------------------------------ */
+const CHANNELS = [
+  { num: 2,  call: "WCBS", name: "CBS 2 New York", events: [
+    [1140, 30, "TV-G",  "Entertainment Tonight", "Celebrity news and interviews from Hollywood and beyond."],
+    [1170, 30, "TV-G",  "Inside Edition", "Investigative reports and human-interest stories."],
+    [1200, 60, "TV-PG", "The Price Is Right at Night", "Contestants bid on prizes in this primetime edition of the classic game show."],
+    [1260, 60, "TV-14", "FBI", "The team races to stop a bomber targeting the transit system."],
+    [1320, 60, "TV-14", "FBI: Most Wanted", "Remick's unit tracks a fugitive across state lines."] ]},
+  { num: 4,  call: "WNBC", name: "NBC 4 New York", events: [
+    [1140, 30, "TV-G",  "Access Hollywood", "Behind-the-scenes entertainment coverage."],
+    [1170, 30, "TV-G",  "Extra", "The latest in entertainment news."],
+    [1200, 60, "TV-PG", "The Wall", "Teams answer trivia as the wall decides their fortune."],
+    [1260, 120,"TV-PG", "Monday Night Movie: Summer Lights", "(2024, Drama) A lighthouse keeper's daughter returns home to a town full of secrets. ***"] ]},
+  { num: 5,  call: "WNYW", name: "FOX 5 New York", events: [
+    [1140, 60, "TV-PG", "TMZ", "Celebrity gossip and entertainment headlines."],
+    [1200, 60, "TV-PG", "Kitchen Showdown", "Twelve chefs face the mystery pantry in the season opener."],
+    [1260, 60, "TV-14", "9-1-1: Lone Star", "A refinery fire pushes the 126 to its limits."],
+    [1320, 60, "TV-G",  "FOX 5 News at 10", "Local news, weather and sports."] ]},
+  { num: 7,  call: "WABC", name: "ABC 7 New York", events: [
+    [1140, 30, "TV-G",  "Jeopardy!", "America's favorite answer-and-question quiz show."],
+    [1170, 30, "TV-G",  "Wheel of Fortune", "Contestants spin the wheel and solve word puzzles."],
+    [1200, 120,"TV-PG", "The Bachelor: Island Nights", "Two-hour special. Alliances shift after a surprise arrival on the island."],
+    [1320, 60, "TV-14", "The Rookie", "Nolan mentors a recruit during a citywide blackout."] ]},
+  { num: 11, call: "WPIX", name: "PIX 11", events: [
+    [1140, 60, "TV-PG", "Family Feud", "Two families face off in the survey says showdown. Back-to-back episodes."],
+    [1200, 120,"TV-PG", "Superman & Lois", "Clark weighs a life without the cape as a new threat rises in Smallville."],
+    [1320, 60, "TV-G",  "PIX11 News at Ten", "New York's very own with the day's top stories."] ]},
+  { num: 13, call: "WNET", name: "THIRTEEN PBS", events: [
+    [1140, 60, "TV-G",  "PBS NewsHour", "In-depth analysis of the day's national and world news."],
+    [1200, 60, "TV-G",  "Antiques Roadshow", "Appraisals from Boise: a 1919 baseball archive stuns the experts."],
+    [1260, 120,"TV-PG", "American Experience: The Grid", "How electrification rewired the American home, town and imagination."] ]},
+  { num: 24, call: "ESPN", name: "ESPN", events: [
+    [1140, 60, "TV-G",  "SportsCenter", "Highlights, analysis and the day's top plays."],
+    [1200, 180,"TV-G",  "MLB Baseball: Yankees at Red Sox", "Live from Fenway Park. Rivalry week continues in Boston."],
+    [1380, 60, "TV-G",  "Baseball Tonight", "Postgame wrap-up and around-the-league highlights."] ]},
+  { num: 26, call: "CNN", name: "CNN", events: [
+    [1140, 60, "TV-PG", "The Situation Room", "Breaking news and political headlines from Washington."],
+    [1200, 60, "TV-PG", "Erin Burnett OutFront", "The stories on the front lines of the news."],
+    [1260, 60, "TV-PG", "Anderson Cooper 360", "Keeping them honest with the day's top stories."],
+    [1320, 60, "TV-PG", "CNN NewsNight", "A late look at the biggest stories of the day."] ]},
+  { num: 31, call: "NICK", name: "Nickelodeon", events: [
+    [1140, 60, "TV-Y7", "SpongeBob SquarePants", "Bikini Bottom hosts the annual Fry Cook Games. Back-to-back episodes."],
+    [1200, 60, "TV-Y7", "The Loud House", "Lincoln schemes to win the family talent show."],
+    [1260, 120,"TV-PG", "Nick at Nite: Friends", "Classic sitcom marathon continues."] ]},
+  { num: 42, call: "TVGC", name: "TV Guide Channel", events: [
+    [1140, 300,"TV-G",  "Listings — What's On Tonight", "Scrolling program listings with entertainment news and previews."] ]},
+];
+
+/* View-state constants mirror epg_core.h */
+const ROWS = 6, COLS = 3, SLOT = 30;
+
+const view = { topRow: 0, curRow: 0, curCol: 0, windowMin: 19 * 60, details: false };
+const nowMin = 20 * 60 + 12;   /* frozen demo clock: 8:12 PM */
+
+const $ = id => document.getElementById(id);
+
+function fmtClock(min) {
+  const h24 = Math.floor(min / 60) % 24, m = min % 60;
+  const h12 = (h24 % 12) || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${h24 < 12 ? "AM" : "PM"}`;
+}
+
+function eventAt(chIdx, at) {
+  const ch = CHANNELS[chIdx];
+  if (!ch) return null;
+  return ch.events.find(e => at >= e[0] && at < e[0] + e[1]) || null;
+}
+
+function cursorEvent() {
+  return eventAt(view.topRow + view.curRow,
+                 view.windowMin + view.curCol * SLOT);
+}
+
+/* Rendering ---------------------------------------------------------- */
+
+function render() {
+  $("clock").textContent = fmtClock(nowMin);
+
+  const tb = ['<div>CHANNEL</div>'];
+  for (let c = 0; c < COLS; c++)
+    tb.push(`<div class="tslot">${fmtClock(view.windowMin + c * SLOT)}</div>`);
+  $("timebar").innerHTML = tb.join("");
+
+  const rows = [];
+  for (let r = 0; r < ROWS; r++) {
+    const chIdx = view.topRow + r;
+    const ch = CHANNELS[chIdx];
+    const cells = [`<div class="chan"><span class="num">${ch ? ch.num : ""}</span>
+                    <span class="call">${ch ? ch.call : ""}</span></div>`];
+    for (let c = 0; c < COLS; ) {
+      const at = view.windowMin + c * SLOT;
+      const ev = ch ? eventAt(chIdx, at) : null;
+      let span = 1;
+      while (c + span < COLS && ev &&
+             ev === eventAt(chIdx, at + span * SLOT)) span++;
+      const hot = r === view.curRow && view.curCol >= c && view.curCol < c + span;
+      const cont = ev && ev[0] < view.windowMin && c === 0;
+      const cls = ["cell", hot && "hot", !ev && "empty", cont && "cont"]
+                    .filter(Boolean).join(" ");
+      const label = ev ? ev[3] : "No listing";
+      cells.push(`<div class="${cls}" style="grid-column: span ${span * 2}"
+                       data-row="${r}" data-col="${c}"><span class="t">${label}</span></div>`);
+      c += span;
+    }
+    rows.push(`<div class="grid-row">${cells.join("")}</div>`);
+  }
+  $("grid").innerHTML = rows.join("");
+
+  const ev = cursorEvent();
+  const ch = CHANNELS[view.topRow + view.curRow];
+  $("info").innerHTML = ev
+    ? `<div class="line1">${ev[3]}
+         <span class="meta">${fmtClock(ev[0])} &ndash; ${fmtClock(ev[0] + ev[1])}
+           &nbsp;&bull;&nbsp; ${ch.num} ${ch.call}</span>
+         <span class="rating">${ev[2]}</span></div>
+       <div class="desc">${ev[4]}</div>`
+    : `<div class="desc" style="color:var(--dim)">No program information available.</div>`;
+
+  const ov = $("overlay");
+  ov.classList.toggle("open", view.details && !!ev);
+  if (view.details && ev) {
+    $("d-title").textContent = ev[3];
+    $("d-meta").innerHTML =
+      `${ch.num} ${ch.call} &mdash; ${ch.name} &nbsp;&bull;&nbsp; ` +
+      `${fmtClock(ev[0])} &ndash; ${fmtClock(ev[0] + ev[1])} &nbsp;&bull;&nbsp; ` +
+      `${ev[1]} min &nbsp;&bull;&nbsp; Rated ${ev[2]}`;
+    $("d-desc").textContent = ev[4];
+  }
+}
+
+/* Input state machine — mirrors epg_handle_key() in epg_core.c -------- */
+
+function tune() {
+  const ch = CHANNELS[view.topRow + view.curRow];
+  view.details = false;
+  const b = $("banner");
+  b.innerHTML = `Tuning to channel ${ch.num} ${ch.call}&hellip;
+                 <small>${ch.name}</small>`;
+  b.classList.add("open");
+  clearTimeout(tune._t);
+  tune._t = setTimeout(() => b.classList.remove("open"), 2200);
+}
+
+function handleKey(key) {
+  switch (key) {
+    case "up":
+      if (view.curRow > 0) view.curRow--;
+      else if (view.topRow > 0) view.topRow--;
+      else return false;
+      return true;
+    case "down":
+      if (view.topRow + view.curRow + 1 >= CHANNELS.length) return false;
+      if (view.curRow < ROWS - 1) view.curRow++;
+      else view.topRow++;
+      return true;
+    case "left":
+      if (view.curCol > 0) view.curCol--;
+      else if (view.windowMin >= SLOT) view.windowMin -= SLOT;
+      else return false;
+      return true;
+    case "right":
+      if (view.curCol < COLS - 1) view.curCol++;
+      else if (view.windowMin + COLS * SLOT < 24 * 60) view.windowMin += SLOT;
+      else return false;
+      return true;
+    case "L":
+      view.windowMin = Math.max(0, view.windowMin - 90);
+      return true;
+    case "R":
+      if (view.windowMin + 90 + COLS * SLOT <= 24 * 60) view.windowMin += 90;
+      return true;
+    case "A":
+      if (view.details) { tune(); return true; }
+      if (cursorEvent()) { view.details = true; return true; }
+      return false;
+    case "B":
+      if (!view.details) return false;
+      view.details = false;
+      return true;
+  }
+  return false;
+}
+
+const KEYMAP = {
+  ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+  Enter: "A", Backspace: "B", Escape: "B",
+  "[": "L", "]": "R",
+};
+
+document.addEventListener("keydown", e => {
+  const key = KEYMAP[e.key] ?? (e.key.toLowerCase() === "d" ? "GUIDE" : null);
+  if (!key) return;
+  e.preventDefault();
+  if (key === "GUIDE") { $("screen").classList.toggle("guide-off"); return; }
+  if (handleKey(key)) render();
+});
+
+$("grid").addEventListener("click", e => {
+  const cell = e.target.closest(".cell");
+  if (!cell) return;
+  const wasHot = cell.classList.contains("hot");
+  view.curRow = +cell.dataset.row;
+  view.curCol = +cell.dataset.col;
+  if (wasHot) view.details = true;   /* second click = A */
+  render();
+});
+
+$("overlay").addEventListener("click", () => { view.details = false; render(); });
+
+render();
+</script>
+</body>
+</html>
