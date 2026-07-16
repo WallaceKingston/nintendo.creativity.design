@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dignity OS — Program Guide</title>
+<style>
+  /* ============================================================
+     DIGNITY OS · Electronic Program Guide
+     Set-top box firmware UI simulation (concept design)
+     Symbol-driven interface — minimal text by design
+     ============================================================ */
+
+  :root {
+    --bg-deep:    #0d0a1f;
+    --bg-panel:   #1a1440;
+    --bg-cell:    #241b58;
+    --bg-cell-2:  #2d2270;
+    --ink:        #e8e4ff;
+    --ink-dim:    #8d84c6;
+    --accent:     #35e0d0;
+    --accent-2:   #ffb03a;
+    --hot:        #ff5d8f;
+    --now-line:   #ffb03a;
+    --glass:      rgba(255,255,255,.06);
+    --radius:     14px;
+    font-size: clamp(10px, 1.25vmin, 16px);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: "Segoe UI", "Hiragino Sans", system-ui, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ---- TV bezel / screen ---- */
+  #screen {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #2b2166 0%, var(--bg-deep) 55%, #070512 100%);
+    overflow: hidden;
+  }
+
+  /* CRT scanlines + vignette */
+  #screen::after {
+    content: "";
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px),
+      radial-gradient(130% 130% at 50% 50%, transparent 60%, rgba(0,0,0,.45) 100%);
+    z-index: 90;
+  }
+
+  /* soft ambient drift behind everything */
+  .aurora {
+    position: absolute; inset: -20%;
+    background:
+      radial-gradient(30% 40% at 20% 30%, rgba(53,224,208,.10), transparent 70%),
+      radial-gradient(35% 45% at 80% 20%, rgba(255,93,143,.09), transparent 70%),
+      radial-gradient(40% 50% at 60% 85%, rgba(255,176,58,.07), transparent 70%);
+    animation: drift 26s ease-in-out infinite alternate;
+    z-index: 0;
+  }
+  @keyframes drift {
+    from { transform: translate(-2%, -1%) scale(1); }
+    to   { transform: translate(2%, 2%) scale(1.06); }
+  }
+
+  /* ============================================================
+     BOOT SEQUENCE
+     ============================================================ */
+  #boot {
+    position: absolute; inset: 0;
+    background: #05040e;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    transition: opacity .9s ease;
+  }
+  #boot.done { opacity: 0; pointer-events: none; }
+
+  .boot-mark { text-align: center; }
+
+  .boot-orbits {
+    position: relative;
+    width: 16rem; height: 16rem;
+    margin: 0 auto 2rem;
+  }
+  .boot-orbits svg { width: 100%; height: 100%; overflow: visible; }
+
+  .orbit-ring {
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    transform-origin: 60px 60px;
+    stroke-dasharray: 240 140;
+    animation: spin 3.2s cubic-bezier(.65,.05,.35,.95) infinite;
+  }
+  .orbit-ring.r1 { stroke: var(--accent);   animation-duration: 3.2s; }
+  .orbit-ring.r2 { stroke: var(--hot);      animation-duration: 4.1s; animation-direction: reverse; }
+  .orbit-ring.r3 { stroke: var(--accent-2); animation-duration: 5.3s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .boot-core {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .boot-core .d-mark {
+    width: 6rem; height: 6rem;
+    animation: corePulse 1.6s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 1.4rem rgba(53,224,208,.55));
+  }
+  @keyframes corePulse {
+    from { transform: scale(.94); }
+    to   { transform: scale(1.06); }
+  }
+
+  .boot-word {
+    letter-spacing: 1.1rem;
+    text-indent: 1.1rem;
+    font-size: 2rem;
+    font-weight: 200;
+    color: var(--ink);
+    opacity: 0;
+    animation: wordIn 1.4s .6s ease forwards;
+  }
+  .boot-sub {
+    margin-top: .8rem;
+    letter-spacing: .55rem;
+    text-indent: .55rem;
+    font-size: .68rem;
+    color: var(--ink-dim);
+    opacity: 0;
+    animation: wordIn 1.4s 1.2s ease forwards;
+  }
+  @keyframes wordIn {
+    from { opacity: 0; transform: translateY(.8rem); letter-spacing: 1.6rem; }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .boot-progress {
+    width: 14rem; height: .25rem;
+    margin: 2.4rem auto 0;
+    border-radius: 99px;
+    background: rgba(255,255,255,.08);
+    overflow: hidden;
+  }
+  .boot-progress i {
+    display: block; height: 100%; width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--hot));
+    animation: load 2.8s .4s cubic-bezier(.3,.8,.4,1) forwards;
+  }
+  @keyframes load { to { width: 100%; } }
+
+  /* ============================================================
+     MAIN GUIDE LAYOUT
+     ============================================================ */
+  #guide {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    gap: 1rem;
+    padding: 2.2rem 2.6rem 1.6rem;
+    z-index: 10;
+    opacity: 0;
+    transform: scale(1.03);
+    transition: opacity .8s ease, transform .8s ease;
+  }
+  #guide.on { opacity: 1; transform: none; }
+
+  /* ---- Top bar ---- */
+  .topbar {
+    display: flex; align-items: center; gap: 1.4rem;
+  }
+  .logo-lockup {
+    display: flex; align-items: center; gap: .8rem;
+  }
+  .logo-lockup .d-mark { width: 2.6rem; height: 2.6rem; }
+  .logo-lockup .word {
+    font-weight: 200; letter-spacing: .5rem; font-size: 1.15rem; color: var(--ink);
+  }
+
+  .topbar .spacer { flex: 1; }
+
+  .status-glyphs {
+    display: flex; align-items: center; gap: 1rem;
+    color: var(--ink-dim);
+  }
+  .status-glyphs svg { width: 1.5rem; height: 1.5rem; display: block; }
+
+  #clock {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.7rem; font-weight: 300;
+    color: var(--ink);
+    letter-spacing: .1rem;
+  }
+  #clock small { font-size: .85rem; color: var(--accent); margin-left: .3rem; }
+
+  /* ---- Now-playing strip: preview + info ---- */
+  .nowstrip {
+    display: grid;
+    grid-template-columns: 22rem 1fr;
+    gap: 1.2rem;
+    align-items: stretch;
+  }
+
+  .preview {
+    position: relative;
+    border-radius: var(--radius);
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    background: #000;
+    box-shadow: 0 .8rem 2.4rem rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.09);
+  }
+  .preview canvas { width: 100%; height: 100%; display: block; }
+  .preview .ch-badge {
+    position: absolute; left: .7rem; top: .7rem;
+    display: flex; align-items: center; gap: .45rem;
+    padding: .3rem .7rem;
+    border-radius: 99px;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(6px);
+    color: #fff; font-size: .85rem; font-weight: 600;
+    letter-spacing: .05rem;
+  }
+  .preview .live-dot {
+    width: .55rem; height: .55rem; border-radius: 50%;
+    background: var(--hot);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  .infocard {
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, var(--glass), rgba(255,255,255,.02));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+    padding: 1.1rem 1.5rem;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: .55rem;
+    min-width: 0;
+  }
+  .infocard .row1 {
+    display: flex; align-items: center; gap: .9rem; min-width: 0;
+  }
+  .infocard .genre-sym {
+    width: 2.4rem; height: 2.4rem; flex: none;
+    display: grid; place-items: center;
+    border-radius: .7rem;
+  }
+  .infocard .genre-sym svg { width: 1.5rem; height: 1.5rem; }
+  .infocard h1 {
+    font-size: 1.55rem; font-weight: 500; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .infocard .meta {
+    display: flex; align-items: center; gap: 1rem;
+    color: var(--ink-dim); font-size: .95rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .infocard .meta .sym { display: inline-flex; align-items: center; gap: .35rem; }
+  .infocard .meta svg { width: 1.05rem; height: 1.05rem; }
+
+  .progressbar {
+    height: .35rem; border-radius: 99px;
+    background: rgba(255,255,255,.09);
+    overflow: hidden;
+  }
+  .progressbar i {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: inherit;
+    transition: width .6s ease;
+  }
+
+  /* ---- EPG grid ---- */
+  .gridwrap {
+    position: relative;
+    border-radius: var(--radius);
+    background: rgba(0,0,0,.25);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 0;
+  }
+
+  /* timeline header */
+  .timeline {
+    display: grid;
+    grid-template-columns: 13rem 1fr;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    background: rgba(255,255,255,.03);
+  }
+  .timeline .corner {
+    display: flex; align-items: center; justify-content: center;
+    padding: .6rem;
+  }
+  .timeline .corner svg { width: 1.4rem; height: 1.4rem; color: var(--accent); }
+  .timeslots { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .timeslots .slot {
+    padding: .6rem .9rem;
+    font-size: .95rem; font-weight: 600;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+    border-left: 1px solid rgba(255,255,255,.05);
+    letter-spacing: .05rem;
+  }
+  .timeslots .slot.now { color: var(--accent-2); }
+
+  /* rows viewport */
+  #rows {
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+  #rowsInner {
+    position: absolute; inset: 0 0 auto 0;
+    transition: transform .35s cubic-bezier(.25,.9,.3,1.1);
+  }
+
+  .ch-row {
+    display: grid;
+    grid-template-columns: 13rem 1fr;
+    height: 5.4rem;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+
+  .ch-label {
+    display: flex; align-items: center; gap: .8rem;
+    padding: 0 1rem;
+    background: rgba(255,255,255,.025);
+  }
+  .ch-num {
+    font-size: .8rem; font-weight: 700;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+    width: 2rem; text-align: right;
+  }
+  .ch-logo {
+    width: 3rem; height: 3rem; flex: none;
+    border-radius: .8rem;
+    display: grid; place-items: center;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+  }
+  .ch-logo svg { width: 1.8rem; height: 1.8rem; }
+  .ch-name {
+    font-size: .78rem; font-weight: 600; letter-spacing: .05rem;
+    color: var(--ink-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .ch-programs { position: relative; }
+
+  .prog {
+    position: absolute; top: .45rem; bottom: .45rem;
+    border-radius: .8rem;
+    background: linear-gradient(160deg, var(--bg-cell-2), var(--bg-cell));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.07);
+    padding: .55rem .9rem;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: .2rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .prog .p-title {
+    font-size: .95rem; font-weight: 600; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .prog .p-syms {
+    display: flex; align-items: center; gap: .5rem;
+    color: var(--ink-dim);
+  }
+  .prog .p-syms svg { width: .95rem; height: .95rem; }
+  .prog .p-time {
+    font-size: .72rem; color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .prog.onair {
+    background: linear-gradient(160deg, #33307e, #262060);
+    box-shadow: inset 0 0 0 1px rgba(53,224,208,.28);
+  }
+
+  .prog.sel {
+    background: linear-gradient(160deg, #3ee7d6, #19b3a6);
+    box-shadow:
+      0 .5rem 1.6rem rgba(53,224,208,.35),
+      inset 0 0 0 2px rgba(255,255,255,.85);
+    transform: scale(1.035);
+    z-index: 5;
+    animation: selGlow 1.5s ease-in-out infinite alternate;
+  }
+  .prog.sel .p-title { color: #06251f; }
+  .prog.sel .p-time, .prog.sel .p-syms { color: #0b4b41; }
+  @keyframes selGlow {
+    from { box-shadow: 0 .5rem 1.6rem rgba(53,224,208,.3),  inset 0 0 0 2px rgba(255,255,255,.85); }
+    to   { box-shadow: 0 .5rem 2.2rem rgba(53,224,208,.55), inset 0 0 0 2px #fff; }
+  }
+
+  /* now-line */
+  #nowline {
+    position: absolute; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--now-line);
+    box-shadow: 0 0 .6rem var(--now-line);
+    z-index: 8;
+    pointer-events: none;
+  }
+  #nowline::before {
+    content: "";
+    position: absolute; top: -1px; left: 50%;
+    transform: translateX(-50%);
+    border: .45rem solid transparent;
+    border-top-color: var(--now-line);
+  }
+
+  /* ---- Bottom control legend: pure symbols ---- */
+  .legend {
+    display: flex; align-items: center; justify-content: center;
+    gap: 2.6rem;
+  }
+  .legend .hint {
+    display: flex; align-items: center; gap: .6rem;
+    color: var(--ink-dim);
+  }
+  .legend .btn {
+    width: 2.1rem; height: 2.1rem;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: .95rem;
+    color: #fff;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.4);
+  }
+  .btn.a { background: #2fbfae; }
+  .btn.b { background: #e4485c; }
+  .btn.x { background: #4a7dff; }
+  .btn.y { background: #f0a530; }
+  .btn.pad {
+    background: #3a3564; border-radius: .5rem;
+  }
+  .legend .hint svg { width: 1.3rem; height: 1.3rem; }
+
+  /* ============================================================
+     DETAIL OVERLAY (A button)
+     ============================================================ */
+  #detail {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(5,4,14,.62);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  #detail.on { opacity: 1; pointer-events: auto; }
+
+  .detail-card {
+    width: min(46rem, 82vw);
+    border-radius: 1.4rem;
+    background: linear-gradient(165deg, #241d5c, #14103a);
+    box-shadow: 0 2rem 5rem rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.12);
+    padding: 2rem 2.4rem;
+    transform: translateY(1.6rem) scale(.96);
+    transition: transform .3s cubic-bezier(.2,.9,.3,1.2);
+  }
+  #detail.on .detail-card { transform: none; }
+
+  .detail-card .head {
+    display: flex; align-items: center; gap: 1rem; margin-bottom: 1.1rem;
+  }
+  .detail-card .genre-sym {
+    width: 3.2rem; height: 3.2rem; flex: none;
+    border-radius: .9rem; display: grid; place-items: center;
+  }
+  .detail-card .genre-sym svg { width: 2rem; height: 2rem; }
+  .detail-card h2 { font-size: 1.7rem; font-weight: 500; color: var(--ink); min-width: 0; }
+  .detail-card .times {
+    color: var(--accent); font-variant-numeric: tabular-nums;
+    font-size: 1rem; letter-spacing: .06rem;
+  }
+  .detail-card p {
+    color: var(--ink-dim); line-height: 1.65; font-size: 1rem;
+    margin-top: .9rem;
+  }
+  .detail-card .symrow {
+    margin-top: 1.4rem;
+    display: flex; gap: .8rem;
+  }
+  .symrow .chip {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .45rem .95rem;
+    border-radius: 99px;
+    background: rgba(255,255,255,.07);
+    color: var(--ink); font-size: .85rem; font-weight: 600;
+  }
+  .symrow .chip svg { width: 1.1rem; height: 1.1rem; }
+
+  .detail-actions {
+    margin-top: 1.8rem;
+    display: flex; gap: 1rem;
+  }
+  .detail-actions .act {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: .6rem;
+    padding: .85rem;
+    border-radius: .9rem;
+    background: rgba(255,255,255,.06);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.1);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .detail-actions .act:hover { background: rgba(53,224,208,.18); transform: translateY(-2px); }
+  .detail-actions .act svg { width: 1.4rem; height: 1.4rem; }
+
+  /* channel-change flash */
+  #flash {
+    position: absolute; inset: 0;
+    background: #fff;
+    opacity: 0; pointer-events: none;
+    z-index: 80;
+  }
+  #flash.zap { animation: zap .35s ease; }
+  @keyframes zap { 0% { opacity: .55; } 100% { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div id="screen">
+  <div class="aurora"></div>
+
+  <!-- ══════════ BOOT ══════════ -->
+  <div id="boot">
+    <div class="boot-mark">
+      <div class="boot-orbits">
+        <svg viewBox="0 0 120 120">
+          <circle class="orbit-ring r1" cx="60" cy="60" r="56"/>
+          <circle class="orbit-ring r2" cx="60" cy="60" r="46"/>
+          <circle class="orbit-ring r3" cx="60" cy="60" r="36"/>
+        </svg>
+        <div class="boot-core">
+          <svg class="d-mark" viewBox="0 0 48 48">
+            <defs>
+              <linearGradient id="dg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#35e0d0"/>
+                <stop offset="1" stop-color="#4a7dff"/>
+              </linearGradient>
+            </defs>
+            <path fill="url(#dg)" d="M12 6h12c10 0 18 8 18 18s-8 18-18 18H12V6zm8 8v20h4c5.5 0 10-4.5 10-10s-4.5-10-10-10h-4z"/>
+          </svg>
+        </div>
+      </div>
+      <div class="boot-word">DIGNITY</div>
+      <div class="boot-sub">DIGITAL · INTELLIGENCE · GENERATIONS · NOW · IN · THE · YIELD</div>
+      <div class="boot-progress"><i></i></div>
+    </div>
+  </div>
+
+  <!-- ══════════ GUIDE ══════════ -->
+  <div id="guide">
+
+    <!-- top bar -->
+    <div class="topbar">
+      <div class="logo-lockup">
+        <svg class="d-mark" viewBox="0 0 48 48">
+          <path fill="#35e0d0" d="M12 6h12c10 0 18 8 18 18s-8 18-18 18H12V6zm8 8v20h4c5.5 0 10-4.5 10-10s-4.5-10-10-10h-4z"/>
+        </svg>
+        <span class="word">DIGNITY</span>
+      </div>
+      <div class="spacer"></div>
+      <div class="status-glyphs">
+        <!-- signal -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M4 18v-4M9 18v-8M14 18V6M19 18V2" stroke="#35e0d0"/>
+        </svg>
+        <!-- satellite dish -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 10a8 8 0 0 0 10 10L4 10z"/><path d="M9 15l3-3"/><circle cx="17" cy="7" r="1.6" fill="currentColor" stroke="none"/><path d="M14 4a6 6 0 0 1 6 6" opacity=".6"/>
+        </svg>
+        <!-- rec dot -->
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#ff5d8f"><animate attributeName="opacity" values="1;.2;1" dur="1.6s" repeatCount="indefinite"/></circle></svg>
+      </div>
+      <div id="clock">--:--<small>--</small></div>
+    </div>
+
+    <!-- now playing -->
+    <div class="nowstrip">
+      <div class="preview">
+        <canvas id="pv" width="480" height="270"></canvas>
+        <div class="ch-badge"><span class="live-dot"></span><span id="pvBadge">CH 01</span></div>
+      </div>
+      <div class="infocard">
+        <div class="row1">
+          <div class="genre-sym" id="npSym"></div>
+          <h1 id="npTitle">—</h1>
+        </div>
+        <div class="meta">
+          <span class="sym" id="npTime">—</span>
+          <span class="sym" id="npFlags"></span>
+        </div>
+        <div class="progressbar"><i id="npProg" style="width:0%"></i></div>
+      </div>
+    </div>
+
+    <!-- grid -->
+    <div class="gridwrap">
+      <div class="timeline">
+        <div class="corner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>
+          </svg>
+        </div>
+        <div class="timeslots" id="timeslots"></div>
+      </div>
+      <div id="rows">
+        <div id="rowsInner"></div>
+        <div id="nowline"></div>
+      </div>
+    </div>
+
+    <!-- symbol legend -->
+    <div class="legend">
+      <div class="hint">
+        <span class="btn pad">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l3 4H9l3-4zm0 18l-3-4h6l-3 4zM3 12l4-3v6l-4-3zm18 0l-4 3V9l4 3z"/></svg>
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7" opacity=".0"/><rect x="4" y="6" width="7" height="5" rx="1.2"/><rect x="13" y="6" width="7" height="5" rx="1.2" opacity=".45"/><rect x="4" y="13" width="7" height="5" rx="1.2" opacity=".45"/><rect x="13" y="13" width="7" height="5" rx="1.2" opacity=".45"/></svg>
+      </div>
+      <div class="hint">
+        <span class="btn a">A</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+      </div>
+      <div class="hint">
+        <span class="btn b">B</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-4"/></svg>
+      </div>
+      <div class="hint">
+        <span class="btn x">X</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M9 9l6 3-6 3V9z" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="hint">
+        <span class="btn y">Y</span>
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ DETAIL OVERLAY ══════════ -->
+  <div id="detail">
+    <div class="detail-card">
+      <div class="head">
+        <div class="genre-sym" id="dtSym"></div>
+        <div style="min-width:0">
+          <h2 id="dtTitle">—</h2>
+          <div class="times" id="dtTimes">—</div>
+        </div>
+      </div>
+      <p id="dtDesc">—</p>
+      <div class="symrow" id="dtChips"></div>
+      <div class="detail-actions">
+        <div class="act" id="actWatch">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5L8 5.5z"/></svg>
+        </div>
+        <div class="act" id="actRec">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="#ff5d8f"/></svg>
+        </div>
+        <div class="act" id="actRemind">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 19a1.8 1.8 0 0 0 3 0"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="flash"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     EPG SOURCE DATA · Dignity OS ingests broadcaster listings
+     as XML service files. This block mirrors that firmware
+     format (services / events, TV-Guide-style feed schema).
+     ════════════════════════════════════════════════════════════ -->
+<script id="epg-xml" type="text/xml">
+<epg version="1.0" system="DIGNITY-OS" tuner="DVB-T2">
+  <service num="01" id="dtv-plaza" name="PLAZA" hue="168" glyph="tv">
+    <event start="0"  dur="1" genre="news"   title="Signal Update"       desc="Headlines and weather on the half hour, live from the Plaza studio."/>
+    <event start="1"  dur="2" genre="talk"   title="The Round Table"     desc="Guests from the worlds of art, science and sport join the daily conversation."/>
+    <event start="3"  dur="1" genre="news"   title="Market Pulse"        desc="Numbers, trends and the stories behind them, in thirty brisk minutes."/>
+    <event start="4"  dur="2" genre="doc"    title="City in Motion"      desc="One day in the life of the metro system, from first train to last."/>
+    <event start="6"  dur="2" genre="talk"   title="Second Opinion"      desc="Two critics, one screen, zero agreement. Tonight: the season's biggest premieres."/>
+    <event start="8"  dur="4" genre="movie"  title="Starfall Boulevard"  desc="A drifting projectionist discovers a reel that plays tomorrow's news. Award-winning drama."/>
+    <event start="12" dur="2" genre="news"   title="Evening Bulletin"    desc="The day's stories in full, with analysis and live reports."/>
+    <event start="14" dur="2" genre="talk"   title="Night Desk"          desc="Long-form interviews after dark, recorded in a single take."/>
+    <event start="16" dur="4" genre="movie"  title="The Paper Comet"     desc="A small-town printing press races to publish one impossible story."/>
+    <event start="20" dur="4" genre="news"   title="Overnight Signal"    desc="Rolling coverage through the small hours."/>
+  </service>
+  <service num="02" id="dtv-arcadia" name="ARCADIA" hue="12" glyph="game">
+    <event start="0"  dur="2" genre="game"   title="Warp Zone Weekly"    desc="Speedruns, secrets and new releases, with the community leaderboard showdown."/>
+    <event start="2"  dur="1" genre="anime"  title="Comet Racer Z"       desc="Episode 24. The interstellar grand prix reaches the rings of a forgotten planet."/>
+    <event start="3"  dur="1" genre="anime"  title="Comet Racer Z"       desc="Episode 25. A rival team unveils an engine that bends the rules — and maybe the track."/>
+    <event start="4"  dur="2" genre="game"   title="Boss Rush Live"      desc="Four challengers, one credit each. The gauntlet is set live on the studio floor."/>
+    <event start="6"  dur="2" genre="talk"   title="Cartridge Club"      desc="Collectors and developers unbox the strangest hardware ever shipped."/>
+    <event start="8"  dur="2" genre="anime"  title="Paper Lantern Tales" desc="Hand-drawn anthology of folk stories from the floating market towns."/>
+    <event start="10" dur="4" genre="game"   title="Summer Invitational" desc="The bracket finals, casted live with picture-in-picture player cams."/>
+    <event start="14" dur="2" genre="anime"  title="Sky Pirates of Ostia" desc="Double bill. The fleet crosses the storm wall in search of the floating archive."/>
+    <event start="16" dur="4" genre="movie"  title="Player Two"          desc="Two estranged siblings reunite to finish the arcade game their mother designed."/>
+    <event start="20" dur="4" genre="game"   title="Night Arcade"        desc="Open lobby marathon into the small hours, viewer challenges welcome."/>
+  </service>
+  <service num="03" id="dtv-terra" name="TERRA" hue="98" glyph="leaf">
+    <event start="0"  dur="2" genre="doc"    title="Cloud Forest"        desc="Cameras climb into the canopy where rain is born and rivers begin."/>
+    <event start="2"  dur="2" genre="doc"    title="Machines of the Deep" desc="Submersibles chart a trench where light has never reached."/>
+    <event start="4"  dur="1" genre="kids"   title="Little Explorers"    desc="Pocket-sized expeditions for curious minds: today, the secret life of ponds."/>
+    <event start="5"  dur="3" genre="doc"    title="The Salt Roads"      desc="Following the caravan routes that carried oceans across deserts."/>
+    <event start="8"  dur="2" genre="doc"    title="Glacier Season"      desc="A year on the ice shelf, compressed into ninety minutes of slow thunder."/>
+    <event start="10" dur="2" genre="talk"   title="Field Notes"         desc="Researchers phone in from tents, towers and research vessels around the world."/>
+    <event start="12" dur="4" genre="doc"    title="Night Sky Atlas"     desc="A slow journey through the summer constellations with the southern observatory."/>
+    <event start="16" dur="4" genre="movie"  title="The Cartographer"    desc="A mapmaker inherits an island that appears on no chart. Quiet, luminous drama."/>
+    <event start="20" dur="4" genre="doc"    title="Ocean After Dark"    desc="Bioluminescent plankton, hunting squid and the midnight migration."/>
+  </service>
+  <service num="04" id="dtv-tempo" name="TEMPO" hue="268" glyph="note">
+    <event start="0"  dur="2" genre="music"  title="Basement Sessions"   desc="Unplugged performances recorded one take at a time, below street level."/>
+    <event start="2"  dur="2" genre="music"  title="Chart Orbit"         desc="The week's most-played tracks, counted down with videos and studio guests."/>
+    <event start="4"  dur="1" genre="talk"   title="Liner Notes"         desc="Producers dissect one classic record, channel by channel."/>
+    <event start="5"  dur="3" genre="music"  title="Festival Circuit"    desc="Highlights from the coastal stages, from soundcheck to encore."/>
+    <event start="8"  dur="4" genre="movie"  title="The Velvet Frequency" desc="A pirate radio crew broadcasts one last summer. Music-driven coming-of-age film."/>
+    <event start="12" dur="2" genre="music"  title="String Theory"       desc="A chamber quartet reworks electronic classics in an empty swimming pool."/>
+    <event start="14" dur="2" genre="talk"   title="B-Side Stories"      desc="The songs that almost made the album, told by the people who cut them."/>
+    <event start="16" dur="4" genre="music"  title="Midnight Signal"     desc="Late-night electronic selections beamed from the harbour lighthouse studio."/>
+    <event start="20" dur="4" genre="music"  title="Slow Waves"          desc="Ambient transmissions until sunrise, with the tide microphones live."/>
+  </service>
+  <service num="05" id="dtv-forum" name="FORUM" hue="212" glyph="ball">
+    <event start="0"  dur="2" genre="sport"  title="Matchday Countdown"  desc="Team news, tactics boards and touchline interviews ahead of kickoff."/>
+    <event start="2"  dur="4" genre="sport"  title="League Final · Live" desc="The championship decider, live with multi-angle replays and radio commentary sync."/>
+    <event start="6"  dur="1" genre="talk"   title="Extra Time"          desc="The final whistle is only the beginning. Reaction, ratings and debate."/>
+    <event start="7"  dur="3" genre="sport"  title="World Rally Recap"   desc="Every stage, every surface: gravel, snow and tarmac from the mountain rounds."/>
+    <event start="10" dur="2" genre="doc"    title="The Tenth Second"    desc="How sprinting's greatest barrier fell, told by the athletes who broke it."/>
+    <event start="12" dur="4" genre="sport"  title="Court Classics"      desc="A five-set epic replayed in full, with new courtside commentary."/>
+    <event start="16" dur="2" genre="talk"   title="The Press Room"      desc="Coaches, quotes and the questions nobody wanted to answer."/>
+    <event start="18" dur="6" genre="sport"  title="Pacific Grand Prix"  desc="Live overnight coverage from the island street circuit, lights to flag."/>
+  </service>
+  <service num="06" id="dtv-luna" name="LUNA" hue="42" glyph="star">
+    <event start="0"  dur="1" genre="kids"   title="Mornings with Momo"  desc="Songs, puppets and pancakes with Momo and the breakfast band."/>
+    <event start="1"  dur="2" genre="anime"  title="Sky Garden Club"     desc="Five friends tend a garden on a floating island, one season at a time."/>
+    <event start="3"  dur="1" genre="kids"   title="Counting Comets"     desc="Numbers hide everywhere: tonight we find them in the night sky."/>
+    <event start="4"  dur="2" genre="kids"   title="Build-It Brigade"    desc="Cardboard, tape and big ideas: today the team builds a working marble city."/>
+    <event start="6"  dur="2" genre="anime"  title="The Acorn Post"      desc="A squirrel courier delivers letters across the tallest forest in the world."/>
+    <event start="8"  dur="4" genre="movie"  title="The Clockwork Kite"  desc="Family adventure. A wind-up kite carries a message across the whole valley."/>
+    <event start="12" dur="2" genre="kids"   title="Puddle Lab"          desc="Kitchen-sink science with spectacularly messy results."/>
+    <event start="14" dur="2" genre="anime"  title="Sky Garden Club"     desc="Season finale. The island drifts toward the mainland for the harvest festival."/>
+    <event start="16" dur="4" genre="movie"  title="Goodnight, Robot"    desc="A bedtime story machine wakes up curious. Gentle animated feature."/>
+    <event start="20" dur="4" genre="music"  title="Lullaby Radio"       desc="Soft songs and starfields until morning."/>
+  </service>
+</epg>
+</script>
+
+<script>
+/* ============================================================
+   DIGNITY OS · EPG runtime
+   ============================================================ */
+
+/* ---------- genre symbol library (SVG, no words) ---------- */
+const GENRES = {
+  news:  { hue: 355, path: '<path d="M4 5h13v14H6a2 2 0 0 1-2-2V5zm13 3h3v9a2 2 0 0 1-2 2h-1V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7 9h7M7 12.5h7M7 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
+  talk:  { hue: 30,  path: '<path d="M4 5h11a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 9h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-1v2.5L15.5 17H13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" opacity=".55"/>' },
+  movie: { hue: 265, path: '<rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 9.5l4 2.5-4 2.5v-5z" fill="currentColor"/>' },
+  sport: { hue: 210, path: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5v4l3.8 2.8-1.5 4.4h-4.6L8.2 10.3 12 7.5M5 7l3.2 3.3M19 7l-3.2 3.3M7.7 14.7L4.5 16M16.3 14.7l3.2 1.3M12 20.5v-5.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' },
+  kids:  { hue: 45,  path: '<path d="M12 3.5l2.4 5 5.6.7-4.1 3.8 1.1 5.5L12 15.8l-5 2.7 1.1-5.5L4 9.2l5.6-.7 2.4-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
+  doc:   { hue: 130, path: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 12h17M12 3.5c-5.5 5-5.5 12 0 17 5.5-5 5.5-12 0-17z" fill="none" stroke="currentColor" stroke-width="1.4"/>' },
+  music: { hue: 285, path: '<path d="M9 17V5l10-2v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6.5" cy="17" r="2.5" fill="currentColor"/><circle cx="16.5" cy="14" r="2.5" fill="currentColor"/>' },
+  anime: { hue: 335, path: '<path d="M12 4c4 0 7 3.2 7 7.5 0 3-1.6 5.3-4 6.5l.6 2.5-3-1.6c-.2 0-.4.1-.6.1-4 0-7-3.2-7-7.5S8 4 12 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9.5" cy="11.5" r="1.2" fill="currentColor"/><circle cx="14.5" cy="11.5" r="1.2" fill="currentColor"/>' },
+  game:  { hue: 15,  path: '<path d="M7 6h10a5 5 0 0 1 5 5v3a4 4 0 0 1-7 2.5L14 15h-4l-1 1.5A4 4 0 0 1 2 14v-3a5 5 0 0 1 5-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.5 9.5v4M5.5 11.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="10.5" r="1" fill="currentColor"/><circle cx="18.5" cy="12.5" r="1" fill="currentColor"/>' },
+};
+
+const CH_GLYPHS = {
+  tv:   '<rect x="3" y="6" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 3l4 3 4-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  game: GENRES.game.path,
+  leaf: '<path d="M5 19C5 9 12 4 20 4c0 9-5 15-13 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 19c3-5 7-8 11-10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+  note: GENRES.music.path,
+  ball: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 10c5 2 11 2 16-1M5 17c4-1.5 9-1.5 14 .5M12 3.5v17" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  star: GENRES.kids.path,
+};
+
+const FLAG_SYMS = {
+  hd:  '<rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 9.5v5M10 9.5v5M7 12h3M13.5 9.5v5h2a2.5 2.5 0 0 0 0-5h-2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  cc:  '<rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 10.2a2 2 0 1 0 0 3.6M16 10.2a2 2 0 1 0 0 3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  st:  '<path d="M4 14a4 4 0 0 1 4-4c3 0 5 4 8 4a4 4 0 0 0 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 10a4 4 0 0 1 4-4c3 0 5 4 8 4a4 4 0 0 0 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity=".5"/>',
+};
+
+function genreSVG(g)   { return `<svg viewBox="0 0 24 24">${(GENRES[g]||GENRES.doc).path}</svg>`; }
+function chGlyphSVG(g) { return `<svg viewBox="0 0 24 24">${CH_GLYPHS[g]||CH_GLYPHS.tv}</svg>`; }
+function flagSVG(f)    { return `<svg viewBox="0 0 24 24">${FLAG_SYMS[f]}</svg>`; }
+function genreTint(g, a=1, l=60) { const h=(GENRES[g]||GENRES.doc).hue; return `hsla(${h} 75% ${l}% / ${a})`; }
+
+/* ---------- audio: synthesized firmware UI sounds ---------- */
+const AudioFX = (() => {
+  let ctx = null;
+  const ac = () => (ctx ||= new (window.AudioContext || window.webkitAudioContext)());
+
+  function tone(freq, t0, dur, type='sine', gain=.16, glideTo=null) {
+    const c = ac(), o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, c.currentTime + t0);
+    if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, c.currentTime + t0 + dur);
+    g.gain.setValueAtTime(0, c.currentTime + t0);
+    g.gain.linearRampToValueAtTime(gain, c.currentTime + t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0008, c.currentTime + t0 + dur);
+    o.connect(g).connect(c.destination);
+    o.start(c.currentTime + t0); o.stop(c.currentTime + t0 + dur + .05);
+  }
+
+  return {
+    unlock() { try { ac().resume(); } catch(e){} },
+    move()   { tone(1240, 0, .07, 'square', .05); },
+    moveV()  { tone(980,  0, .07, 'square', .05); },
+    select() { tone(660, 0, .12, 'triangle', .14); tone(990, .07, .16, 'triangle', .12); tone(1320, .14, .22, 'sine', .1); },
+    back()   { tone(880, 0, .1, 'triangle', .12); tone(587, .07, .16, 'triangle', .1); },
+    zap()    { tone(300, 0, .16, 'sawtooth', .07, 1800); tone(1800, .1, .12, 'sine', .06, 600); },
+    denied() { tone(220, 0, .12, 'square', .08); tone(207, .1, .16, 'square', .08); },
+    boot() {
+      // rising firmware chime: soft fifth-stack arpeggio with shimmer
+      const seq = [[392,0,.7],[523.25,.18,.8],[659.25,.36,.9],[783.99,.54,1.2],[1567.98,.8,1.4]];
+      seq.forEach(([f,t,d]) => { tone(f, t, d, 'sine', .12); tone(f*2, t+.02, d*.6, 'sine', .035); });
+      tone(98, .0, 1.6, 'triangle', .07);
+    },
+    chirp()  { tone(1568, 0, .09, 'sine', .09); tone(2093, .06, .12, 'sine', .07); },
+  };
+})();
+
+/* ---------- parse XML source ----------
+   Event start/dur are in 30-minute grid units;
+   24 units = a 12-hour listing window. */
+const xmlDoc = new DOMParser().parseFromString(
+  document.getElementById('epg-xml').textContent, 'text/xml');
+
+const channels = [...xmlDoc.querySelectorAll('service')].map(s => ({
+  num:   s.getAttribute('num'),
+  id:    s.getAttribute('id'),
+  name:  s.getAttribute('name'),
+  hue:   +s.getAttribute('hue'),
+  glyph: s.getAttribute('glyph'),
+  events: [...s.querySelectorAll('event')].map(e => ({
+    start: +e.getAttribute('start'),     // half-slot units from window start
+    dur:   +e.getAttribute('dur'),
+    genre: e.getAttribute('genre'),
+    title: e.getAttribute('title'),
+    desc:  e.getAttribute('desc'),
+    flags: ['hd', ...(Math.random() > .4 ? ['st'] : ['cc'])],
+  })),
+}));
+
+/* ---------- time model ----------
+   Guide window: 2 hours visible (4 columns of 30 min).
+   XML timeline: 24 half-slot units = 12 h, anchored so "now"
+   sits inside the first visible window. */
+const UNITS_TOTAL = 24;
+const UNIT_MIN = 30;
+
+const nowReal = new Date();
+const anchor = new Date(nowReal);        // window start = top of current hour, minus 30min
+anchor.setMinutes(nowReal.getMinutes() < 30 ? 0 : 30, 0, 0);
+const windowStart = new Date(anchor.getTime() - 30 * 60000);  // one slot of history
+
+function unitToDate(u) { return new Date(windowStart.getTime() + u * UNIT_MIN * 60000); }
+function fmtHM(d) {
+  let h = d.getHours(), m = d.getMinutes();
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function nowUnits() { return (Date.now() - windowStart.getTime()) / (UNIT_MIN * 60000); }
+
+/* ---------- state ---------- */
+const VISIBLE_UNITS = 4;                 // 4 × 30 min = 2 h on screen
+const state = {
+  ch: 0,                                 // selected channel index
+  ev: 0,                                 // selected event index within channel
+  t0: 0,                                 // left edge of visible window, in units
+  tuned: 0,                              // channel playing in preview
+  detailOpen: false,
+  booted: false,
+};
+
+/* ---------- build grid DOM ---------- */
+const rowsInner = document.getElementById('rowsInner');
+const timeslots = document.getElementById('timeslots');
+
+function currentEventIndex(ch) {
+  const n = nowUnits();
+  const evs = channels[ch].events;
+  for (let i = 0; i < evs.length; i++)
+    if (n >= evs[i].start && n < evs[i].start + evs[i].dur) return i;
+  return 0;
+}
+
+function renderTimeslots() {
+  timeslots.innerHTML = '';
+  const n = nowUnits();
+  for (let i = 0; i < VISIBLE_UNITS; i++) {
+    const u = state.t0 + i;
+    const d = unitToDate(u);
+    const el = document.createElement('div');
+    el.className = 'slot' + (n >= u && n < u + 1 ? ' now' : '');
+    el.textContent = fmtHM(d);
+    timeslots.appendChild(el);
+  }
+}
+
+function renderRows() {
+  rowsInner.innerHTML = '';
+  channels.forEach((ch, ci) => {
+    const row = document.createElement('div');
+    row.className = 'ch-row';
+
+    const label = document.createElement('div');
+    label.className = 'ch-label';
+    label.innerHTML = `
+      <span class="ch-num">${ch.num}</span>
+      <span class="ch-logo" style="background:hsla(${ch.hue} 70% 55% / .18); color:hsl(${ch.hue} 80% 68%)">${chGlyphSVG(ch.glyph)}</span>
+      <span class="ch-name">${ch.name}</span>`;
+    row.appendChild(label);
+
+    const lane = document.createElement('div');
+    lane.className = 'ch-programs';
+    const n = nowUnits();
+
+    ch.events.forEach((ev, ei) => {
+      const evEnd = ev.start + ev.dur;
+      if (evEnd <= state.t0 || ev.start >= state.t0 + VISIBLE_UNITS) return;
+
+      const clipStart = Math.max(ev.start, state.t0);
+      const clipEnd   = Math.min(evEnd, state.t0 + VISIBLE_UNITS);
+      const leftPct   = (clipStart - state.t0) / VISIBLE_UNITS * 100;
+      const widPct    = (clipEnd - clipStart) / VISIBLE_UNITS * 100;
+
+      const cell = document.createElement('div');
+      cell.className = 'prog'
+        + (n >= ev.start && n < evEnd ? ' onair' : '')
+        + (ci === state.ch && ei === state.ev ? ' sel' : '');
+      cell.style.left  = `calc(${leftPct}% + .25rem)`;
+      cell.style.width = `calc(${widPct}% - .5rem)`;
+      cell.dataset.ch = ci; cell.dataset.ev = ei;
+
+      const flags = ev.flags.map(flagSVG).join('');
+      cell.innerHTML = `
+        <div class="p-title">${ev.title}</div>
+        <div class="p-syms">
+          <span style="color:${genreTint(ev.genre, .9, 65)}">${genreSVG(ev.genre)}</span>
+          ${flags}
+          <span class="p-time">${fmtHM(unitToDate(ev.start))}–${fmtHM(unitToDate(evEnd))}</span>
+        </div>`;
+
+      cell.addEventListener('click', () => {
+        AudioFX.unlock();
+        if (ci === state.ch && ei === state.ev) { openDetail(); }
+        else { state.ch = ci; state.ev = ei; AudioFX.move(); refresh(); }
+      });
+      lane.appendChild(cell);
+    });
+
+    row.appendChild(lane);
+    rowsInner.appendChild(row);
+  });
+
+  // vertical scroll: keep selected row in view (5 rows fit)
+  const rowH = rowsInner.querySelector('.ch-row')?.offsetHeight || 0;
+  const viewH = document.getElementById('rows').offsetHeight;
+  const fit = Math.max(1, Math.floor(viewH / rowH));
+  const topIdx = Math.min(Math.max(0, state.ch - Math.floor(fit / 2)), Math.max(0, channels.length - fit));
+  rowsInner.style.transform = `translateY(${-topIdx * rowH}px)`;
+}
+
+function renderNowline() {
+  const el = document.getElementById('nowline');
+  const n = nowUnits();
+  if (n < state.t0 || n > state.t0 + VISIBLE_UNITS) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const labelW = 13;   // rem, matches grid-template
+  const rows = document.getElementById('rows');
+  const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const laneW = rows.offsetWidth - labelW * remPx;
+  el.style.left = `${labelW * remPx + (n - state.t0) / VISIBLE_UNITS * laneW}px`;
+}
+
+/* ---------- now-playing panel + preview ---------- */
+function renderNowPlaying() {
+  const ch = channels[state.tuned];
+  const ei = currentEventIndex(state.tuned);
+  const ev = ch.events[ei];
+  const n = nowUnits();
+
+  document.getElementById('pvBadge').textContent = `CH ${ch.num}`;
+  document.getElementById('npTitle').textContent = ev.title;
+  const sym = document.getElementById('npSym');
+  sym.style.background = genreTint(ev.genre, .18, 55);
+  sym.style.color = genreTint(ev.genre, 1, 68);
+  sym.innerHTML = genreSVG(ev.genre);
+
+  document.getElementById('npTime').textContent =
+    `${fmtHM(unitToDate(ev.start))} – ${fmtHM(unitToDate(ev.start + ev.dur))}`;
+  document.getElementById('npFlags').innerHTML = ev.flags.map(flagSVG).join(' ');
+
+  const pct = Math.min(100, Math.max(0, (n - ev.start) / ev.dur * 100));
+  document.getElementById('npProg').style.width = pct + '%';
+}
+
+/* preview canvas: animated faux-broadcast (color drift + shapes) */
+const pv = document.getElementById('pv');
+const px = pv.getContext('2d');
+let pvT = 0, staticUntil = 0;
+
+function drawPreview() {
+  pvT += 0.016;
+  const w = pv.width, h = pv.height;
+  const hue = channels[state.tuned].hue;
+
+  if (performance.now() < staticUntil) {
+    // channel-change static burst
+    const img = px.createImageData(w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255;
+      img.data[i] = img.data[i+1] = img.data[i+2] = v; img.data[i+3] = 255;
+    }
+    px.putImageData(img, 0, 0);
+  } else {
+    const g = px.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, `hsl(${hue + Math.sin(pvT*.5)*14} 55% ${16 + Math.sin(pvT*.8)*4}%)`);
+    g.addColorStop(1, `hsl(${hue + 40} 60% 8%)`);
+    px.fillStyle = g; px.fillRect(0, 0, w, h);
+
+    // drifting bokeh discs
+    for (let i = 0; i < 7; i++) {
+      const a = pvT * (.25 + i * .07) + i * 1.7;
+      const x = w/2 + Math.cos(a) * (60 + i * 26);
+      const y = h/2 + Math.sin(a * 1.3) * (36 + i * 12);
+      px.beginPath();
+      px.arc(x, y, 14 + i * 7, 0, 7);
+      px.fillStyle = `hsla(${hue + i*18} 80% 62% / ${.10 - i*.008})`;
+      px.fill();
+    }
+    // sweeping highlight bar
+    const sx = ((pvT * 40) % (w + 200)) - 100;
+    const sg = px.createLinearGradient(sx - 60, 0, sx + 60, 0);
+    sg.addColorStop(0, 'transparent');
+    sg.addColorStop(.5, 'rgba(255,255,255,.05)');
+    sg.addColorStop(1, 'transparent');
+    px.fillStyle = sg; px.fillRect(0, 0, w, h);
+  }
+  requestAnimationFrame(drawPreview);
+}
+
+/* ---------- detail overlay ---------- */
+function openDetail() {
+  const ch = channels[state.ch];
+  const ev = ch.events[state.ev];
+  document.getElementById('dtTitle').textContent = ev.title;
+  document.getElementById('dtTimes').textContent =
+    `${fmtHM(unitToDate(ev.start))} – ${fmtHM(unitToDate(ev.start + ev.dur))}  ·  CH ${ch.num}`;
+  document.getElementById('dtDesc').textContent = ev.desc;
+  const sym = document.getElementById('dtSym');
+  sym.style.background = genreTint(ev.genre, .18, 55);
+  sym.style.color = genreTint(ev.genre, 1, 68);
+  sym.innerHTML = genreSVG(ev.genre);
+  document.getElementById('dtChips').innerHTML =
+    `<span class="chip" style="color:${genreTint(ev.genre,1,70)}">${genreSVG(ev.genre)}</span>`
+    + ev.flags.map(f => `<span class="chip">${flagSVG(f)}</span>`).join('');
+  document.getElementById('detail').classList.add('on');
+  state.detailOpen = true;
+  AudioFX.select();
+}
+function closeDetail() {
+  document.getElementById('detail').classList.remove('on');
+  state.detailOpen = false;
+  AudioFX.back();
+}
+function tuneToSelection() {
+  if (state.tuned !== state.ch) {
+    state.tuned = state.ch;
+    staticUntil = performance.now() + 280;
+    document.getElementById('flash').classList.remove('zap');
+    void document.getElementById('flash').offsetWidth;
+    document.getElementById('flash').classList.add('zap');
+    AudioFX.zap();
+  } else {
+    AudioFX.chirp();
+  }
+  closeDetailSilent();
+  renderNowPlaying();
+}
+function closeDetailSilent() {
+  document.getElementById('detail').classList.remove('on');
+  state.detailOpen = false;
+}
+
+document.getElementById('actWatch').addEventListener('click', tuneToSelection);
+document.getElementById('actRec').addEventListener('click', () => { AudioFX.chirp(); closeDetail(); });
+document.getElementById('actRemind').addEventListener('click', () => { AudioFX.chirp(); closeDetail(); });
+document.getElementById('detail').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDetail();
+});
+
+/* ---------- clock ---------- */
+function renderClock() {
+  const d = new Date();
+  const h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0');
+  document.getElementById('clock').innerHTML =
+    `${String(h).padStart(2,'0')}:${m}<small>${String(d.getSeconds()).padStart(2,'0')}</small>`;
+}
+
+/* ---------- navigation ---------- */
+function clampSelection() {
+  const evs = channels[state.ch].events;
+  state.ev = Math.min(Math.max(0, state.ev), evs.length - 1);
+}
+
+function moveH(dir) {
+  const evs = channels[state.ch].events;
+  const ni = state.ev + dir;
+  if (ni < 0 || ni >= evs.length) {
+    // try scrolling the time window instead
+    const nt = state.t0 + dir;
+    if (nt >= 0 && nt + VISIBLE_UNITS <= UNITS_TOTAL) { state.t0 = nt; AudioFX.move(); refresh(); }
+    else AudioFX.denied();
+    return;
+  }
+  state.ev = ni;
+  const ev = evs[state.ev];
+  // auto-scroll window to keep selection visible
+  if (ev.start < state.t0)
+    state.t0 = Math.max(0, ev.start);
+  else if (ev.start + Math.min(ev.dur, 1) > state.t0 + VISIBLE_UNITS)
+    state.t0 = Math.min(UNITS_TOTAL - VISIBLE_UNITS, ev.start);
+  AudioFX.move();
+  refresh();
+}
+
+function moveV(dir) {
+  const nc = state.ch + dir;
+  if (nc < 0 || nc >= channels.length) { AudioFX.denied(); return; }
+  state.ch = nc;
+  // land on the event nearest the current window's focus
+  const evs = channels[state.ch].events;
+  const focus = Math.max(state.t0, Math.min(nowUnits(), state.t0 + VISIBLE_UNITS - 1));
+  let best = 0, bd = 1e9;
+  evs.forEach((e, i) => {
+    const c = e.start + e.dur / 2;
+    const d = Math.abs(c - (state.t0 + VISIBLE_UNITS / 2));
+    if (d < bd) { bd = d; best = i; }
+  });
+  state.ev = best;
+  clampSelection();
+  AudioFX.moveV();
+  refresh();
+}
+
+document.addEventListener('keydown', e => {
+  AudioFX.unlock();
+  if (!state.booted) return;
+
+  if (state.detailOpen) {
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key.toLowerCase() === 'b') closeDetail();
+    if (e.key === 'Enter'  || e.key.toLowerCase() === 'a') tuneToSelection();
+    e.preventDefault();
+    return;
+  }
+
+  switch (e.key) {
+    case 'ArrowLeft':  moveH(-1); break;
+    case 'ArrowRight': moveH(1);  break;
+    case 'ArrowUp':    moveV(-1); break;
+    case 'ArrowDown':  moveV(1);  break;
+    case 'Enter': case 'a': case 'A': openDetail(); break;
+    case 'Escape': case 'Backspace': case 'b': case 'B': AudioFX.back(); break;
+    case 'x': case 'X': tuneToSelectionFromGrid(); break;
+    default: return;
+  }
+  e.preventDefault();
+});
+
+function tuneToSelectionFromGrid() {
+  state.tuned = state.ch;
+  staticUntil = performance.now() + 280;
+  const fl = document.getElementById('flash');
+  fl.classList.remove('zap'); void fl.offsetWidth; fl.classList.add('zap');
+  AudioFX.zap();
+  renderNowPlaying();
+}
+
+/* ---------- refresh + boot ---------- */
+function refresh() {
+  renderTimeslots();
+  renderRows();
+  renderNowline();
+  renderNowPlaying();
+}
+
+function boot() {
+  // start on the on-air event of channel 1
+  state.ev = currentEventIndex(0);
+  refresh();
+  renderClock();
+  drawPreview();
+
+  setInterval(renderClock, 1000);
+  setInterval(() => { renderNowline(); renderNowPlaying(); renderTimeslots(); }, 30000);
+
+  // boot chime plays on first interaction if autoplay is blocked
+  const playChime = () => { AudioFX.unlock(); AudioFX.boot(); };
+  try { playChime(); } catch (e) {}
+  document.addEventListener('pointerdown', () => AudioFX.unlock(), { once: true });
+
+  setTimeout(() => {
+    document.getElementById('boot').classList.add('done');
+    document.getElementById('guide').classList.add('on');
+    state.booted = true;
+    refresh();
+  }, 3600);
+}
+
+window.addEventListener('resize', () => { renderRows(); renderNowline(); });
+boot();
+</script>
+</body>
+</html>
